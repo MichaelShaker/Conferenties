@@ -39,31 +39,38 @@ jobs:
       - name: Wait for backend health
         run: |
           for i in {1..40}; do
-            if curl -fsS http://127.0.0.1:8080/api/health; then
+            if curl -fsS http://127.0.0.1:8096/api/health; then
               exit 0
             fi
             sleep 3
           done
+          echo "Backend did not become ready in time"
+          docker compose -f compose.ci.yml ps || true
           docker compose -f compose.ci.yml logs || true
           exit 1
 
       - name: Wait for frontend
         run: |
           for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:3000 > /tmp/response.html; then
+            if curl -fsS http://127.0.0.1:3096 > /tmp/response.html; then
               exit 0
             fi
             sleep 2
           done
+          echo "Frontend did not become ready in time"
+          docker compose -f compose.ci.yml ps || true
           docker compose -f compose.ci.yml logs || true
           exit 1
 
       - name: Validate frontend response
-        run: grep -qi "<html" /tmp/response.html
+        run: |
+          grep -qi "<html" /tmp/response.html
 
       - name: Stop CI stack
         if: always()
-        run: docker compose -f compose.ci.yml down -v
+        run: |
+          docker compose -f compose.ci.yml logs || true
+          docker compose -f compose.ci.yml down -v
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
