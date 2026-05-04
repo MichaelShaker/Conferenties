@@ -1,0 +1,28 @@
+name: conferenties-local
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: conferenties-local-backend
+    environment:
+      PORT: 8080
+      DB_HOST: host.docker.internal
+      DB_PORT: 3310
+      DB_USER: root
+      DB_PASSWORD: yourpassword
+      DB_NAME: conferenties
+      NODE_ENV: development
+    ports:
+      - "8096:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: conferenties-local-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3096:80"

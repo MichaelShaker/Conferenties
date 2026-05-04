@@ -62,7 +62,7 @@ export default {
         const token = this.$route.params.token;
 
         const response = await fetch(
-            `http://localhost:3002/api/password/reset-password/${token}`,
+            `/api/password/reset-password/${token}`,
             {
               method: "POST",
               headers: {

@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3002/api/khelwa"
+const API_URL = "/api/khelwa"
 
 function getToken() {
     return localStorage.getItem("token")

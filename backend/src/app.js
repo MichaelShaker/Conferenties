@@ -12,7 +12,11 @@ const khelwaRoutes = require('./routes/khelwa/khelwaRoutes');
 const app = express();
 
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"]
+    origin: [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3095"
+    ]
 }));
 
 app.use(express.json({ limit: "10mb" }));

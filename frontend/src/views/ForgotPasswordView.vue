@@ -43,7 +43,7 @@ export default {
 
       try {
         const response = await fetch(
-            "http://localhost:3002/api/password/forgot-password",
+            "/api/password/forgot-password",
             {
               method: "POST",
               headers: {
