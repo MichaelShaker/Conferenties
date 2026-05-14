@@ -8,8 +8,11 @@ services:
       MYSQL_DATABASE: conferenties
       MYSQL_USER: conferenties_user
       MYSQL_PASSWORD: conferenties_pass
+    ports:
+      - "3310:3306"
     volumes:
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./database/seed.test.sql:/docker-entrypoint-initdb.d/02-seed.test.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 10s
@@ -20,6 +23,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
     depends_on:
       mysql:
         condition: service_healthy
@@ -32,7 +37,7 @@ services:
       DB_NAME: conferenties
       NODE_ENV: test
     ports:
-      - "8096:8080"
+      - "8097:8080"
 
   frontend:
     build:
@@ -41,4 +46,4 @@ services:
     depends_on:
       - backend
     ports:
-      - "3096:80"
+      - "3097:80"

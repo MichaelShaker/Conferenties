@@ -1,11 +1,37 @@
 import { reactive } from 'vue'
 
-const savedToken = localStorage.getItem('token')
-const savedUser = JSON.parse(localStorage.getItem('user') || 'null')
+function loadSavedAuth() {
+    const token = localStorage.getItem('token') || ''
+    const rawUser = localStorage.getItem('user')
+
+    if (!rawUser) {
+        return {
+            token,
+            user: null
+        }
+    }
+
+    try {
+        return {
+            token,
+            user: JSON.parse(rawUser)
+        }
+    } catch (error) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+
+        return {
+            token: '',
+            user: null
+        }
+    }
+}
+
+const savedAuth = loadSavedAuth()
 
 export const authState = reactive({
-    token: savedToken || '',
-    user: savedUser || null
+    token: savedAuth.token,
+    user: savedAuth.user
 })
 
 export function setAuth(token, user) {

@@ -56,6 +56,179 @@
         </div>
       </div>
 
+      <!-- GOOGLE SHEETS -->
+      <section class="google-panel">
+        <div>
+          <p class="eyebrow">Google Sheets</p>
+          <h2>Automatische event-spreadsheets</h2>
+          <p v-if="googleStatus.connected">
+            Verbonden met {{ googleStatus.email || 'Google' }}. Nieuwe events, registraties, betalingen en statuswijzigingen worden automatisch gesynchroniseerd.
+          </p>
+          <p v-else>
+            Verbind een Google-account om per event automatisch een online deelnemerslijst bij te houden.
+          </p>
+        </div>
+
+        <button
+            v-if="!googleStatus.connected"
+            type="button"
+            class="google-button"
+            @click="connectGoogle"
+            :disabled="googleLoading"
+        >
+          {{ googleLoading ? 'Bezig...' : 'Google verbinden' }}
+        </button>
+
+        <button
+            v-else
+            type="button"
+            class="secondary-button"
+            @click="syncAllSheets"
+            :disabled="googleLoading"
+        >
+          {{ googleLoading ? 'Sheets bijwerken...' : 'Alles automatisch klaarzetten' }}
+        </button>
+      </section>
+
+      <!-- EVENT EXPORTS -->
+      <section class="event-export-panel">
+        <div class="panel-heading export-heading">
+          <div>
+            <p class="eyebrow">Per event</p>
+            <h2>Deelnemerslijst voor locatie</h2>
+            <p>Bekijk of download de actuele lijst met goedgekeurde deelnemers per event.</p>
+          </div>
+          <label class="export-filter">
+            <span>CSV filter</span>
+            <select v-model="exportFilter">
+              <option value="all">Alles</option>
+              <option value="approved">Op locatie</option>
+              <option value="pending_payment">Wacht op betaling</option>
+              <option value="proof_uploaded">Bewijs geüpload</option>
+              <option value="bus">Buslijst</option>
+              <option value="shirts">Shirtmaten</option>
+              <option value="cancelled">Geannuleerd</option>
+            </select>
+          </label>
+        </div>
+
+        <div v-if="eventSummaries.length > 0" class="event-export-grid">
+          <article
+              v-for="event in eventSummaries"
+              :key="event.id"
+              :class="['event-export-card', { active: selectedEventId === event.id }]"
+          >
+            <div>
+              <span>{{ formatDate(event.date) }}</span>
+              <h3>{{ event.title }}</h3>
+              <p>{{ event.location || 'Locatie onbekend' }}</p>
+            </div>
+
+            <dl>
+              <div>
+                <dt>Goedgekeurd</dt>
+                <dd>{{ event.approvedCount }}</dd>
+              </div>
+              <div>
+                <dt>Totaal</dt>
+                <dd>{{ event.totalCount }}</dd>
+              </div>
+            </dl>
+            <p class="sync-meta">
+              Laatste sync:
+              <strong>{{ event.googleSheetLastSyncedAt ? formatDate(event.googleSheetLastSyncedAt) : 'nog niet' }}</strong>
+              <span v-if="event.googleSheetLastError">- {{ event.googleSheetLastError }}</span>
+            </p>
+
+            <div class="event-export-actions">
+              <button type="button" class="secondary-button" @click="selectEvent(event.id)">
+                Bekijken
+              </button>
+
+              <button
+                  type="button"
+                  class="csv-button"
+                  @click="exportCsvForEvent(event)"
+                  :disabled="event.totalCount === 0"
+              >
+                Download CSV
+              </button>
+
+              <button
+                  type="button"
+                  class="google-sync-button"
+                  @click="syncGoogleSheet(event)"
+                  :disabled="!googleStatus.connected || googleLoading"
+              >
+                Herstel sync
+              </button>
+
+              <a
+                  v-if="event.googleSheetUrl"
+                  class="sheet-link"
+                  :href="event.googleSheetUrl"
+                  target="_blank"
+              >
+                Open Sheet
+              </a>
+            </div>
+          </article>
+        </div>
+
+        <div v-if="selectedEventSummary" class="event-preview">
+          <div class="preview-heading">
+            <div>
+              <h3>{{ selectedEventSummary.title }}</h3>
+              <p>{{ selectedEventRegistrations.length }} registraties in deze export.</p>
+            </div>
+
+            <button
+                type="button"
+                class="csv-button"
+                @click="exportCsvForEvent(selectedEventSummary)"
+                :disabled="selectedEventRegistrations.length === 0"
+            >
+              Download actuele lijst
+            </button>
+          </div>
+
+          <div class="table-wrapper compact">
+            <table>
+              <thead>
+              <tr>
+                <th>Naam</th>
+                <th>E-mail</th>
+                <th>Telefoon</th>
+                <th>Shirtmaat</th>
+                <th>Vervoer</th>
+                <th>Kerk</th>
+                <th>Status</th>
+                <th>Op locatie</th>
+              </tr>
+              </thead>
+
+              <tbody>
+              <tr v-for="registration in selectedEventRegistrations" :key="registration.id">
+                <td><strong>{{ registration.userName }}</strong></td>
+                <td>{{ registration.userEmail }}</td>
+                <td>{{ registration.userPhone || '-' }}</td>
+                <td>{{ registration.shirtSize || '-' }}</td>
+                <td>{{ transportOptionText(registration.transportOption) }}</td>
+                <td>{{ registration.churchName || '-' }}</td>
+                <td>{{ registrationStatusText(registration.registrationStatus) }}</td>
+                <td>{{ isApprovedRegistration(registration) ? 'Ja' : 'Nee' }}</td>
+              </tr>
+              </tbody>
+            </table>
+
+            <div v-if="selectedEventRegistrations.length === 0" class="empty-state small">
+              <h2>Nog geen goedgekeurde deelnemers</h2>
+              <p>Nieuwe registraties verschijnen hier zodra mensen zich aanmelden.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- TABLE -->
       <section class="registrations-panel">
         <div class="panel-heading">
@@ -73,8 +246,10 @@
               <th>Gebruiker</th>
               <th>Event</th>
               <th>Datum</th>
+              <th>Extra</th>
               <th>Betaalstatus</th>
               <th>Registratie</th>
+              <th>Admin notitie</th>
               <th>Betaalbewijs</th>
               <th>Actie</th>
             </tr>
@@ -96,6 +271,13 @@
               <td>{{ formatDate(registration.eventDate) }}</td>
 
               <td>
+                <div class="extra-cell">
+                  <span>{{ registration.shirtSize || 'Geen shirtmaat' }}</span>
+                  <span>{{ transportOptionText(registration.transportOption) }}</span>
+                </div>
+              </td>
+
+              <td>
                   <span :class="['status-pill', registration.paymentStatus]">
                     {{ paymentStatusText(registration.paymentStatus) }}
                   </span>
@@ -105,6 +287,16 @@
                   <span :class="['status-pill', registration.registrationStatus]">
                     {{ registrationStatusText(registration.registrationStatus) }}
                   </span>
+              </td>
+
+              <td>
+                <textarea
+                    v-model="registration.adminNote"
+                    class="note-input"
+                    rows="2"
+                    placeholder="Interne notitie"
+                    @blur="saveRegistrationNote(registration)"
+                />
               </td>
 
               <td>
@@ -137,6 +329,21 @@
                   >
                     Afwijzen
                   </button>
+
+                  <button
+                      class="csv-button"
+                      @click="exportCsvForEvent(registration)"
+                  >
+                    Export CSV
+                  </button>
+
+                  <button
+                      class="secondary-button"
+                      @click="resendMail(registration)"
+                      :disabled="!canResendRegistrationMail(registration)"
+                  >
+                    Mail opnieuw
+                  </button>
                 </div>
               </td>
             </tr>
@@ -156,12 +363,29 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import StatusMessage from '../components/StatusMessage.vue'
-import { fetchAdminRegistrations, updateRegistrationStatus } from '../services/api'
+import {
+  fetchAdminRegistrations,
+  updateRegistrationStatus,
+  exportApprovedUsersCsv,
+  fetchGoogleSheetsStatus,
+  fetchGoogleSheetsAuthUrl,
+  syncGoogleSheetForEvent,
+  syncAllGoogleSheets,
+  resendRegistrationEmail
+} from '../services/api'
 import { authState } from '../stores/auth'
 
 const message = ref('')
 const success = ref(false)
 const registrations = ref([])
+const selectedEventId = ref('')
+const exportFilter = ref('all')
+const googleLoading = ref(false)
+const googleStatus = ref({
+  connected: false,
+  email: null
+})
+const hasTriedAutoBackfill = ref(false)
 
 const isAdmin = computed(() => authState.user?.role === 'admin')
 
@@ -174,11 +398,74 @@ const proofUploadedCount = computed(() => {
 })
 
 const confirmedCount = computed(() => {
-  return registrations.value.filter(registration => registration.registrationStatus === 'confirmed').length
+  return registrations.value.filter(isApprovedRegistration).length
+})
+
+const eventSummaries = computed(() => {
+  const eventsById = new Map()
+
+  registrations.value.forEach(registration => {
+    if (!eventsById.has(registration.eventId)) {
+      eventsById.set(registration.eventId, {
+        id: registration.eventId,
+        eventId: registration.eventId,
+        title: registration.eventTitle,
+        eventTitle: registration.eventTitle,
+        date: registration.eventDate,
+        location: registration.eventLocation,
+        googleSheetUrl: registration.googleSheetUrl,
+        googleSheetLastSyncedAt: registration.googleSheetLastSyncedAt,
+        googleSheetLastError: registration.googleSheetLastError,
+        totalCount: 0,
+        approvedCount: 0
+      })
+    }
+
+    const event = eventsById.get(registration.eventId)
+    event.totalCount += 1
+
+    if (isApprovedRegistration(registration)) {
+      event.approvedCount += 1
+    }
+  })
+
+  return Array.from(eventsById.values()).sort((a, b) => {
+    return new Date(a.date || 0) - new Date(b.date || 0)
+  })
+})
+
+const selectedEventSummary = computed(() => {
+  return eventSummaries.value.find(event => event.id === selectedEventId.value) || null
+})
+
+const selectedEventRegistrations = computed(() => {
+  if (!selectedEventId.value) return []
+
+  return registrations.value
+      .filter(registration => registration.eventId === selectedEventId.value)
+      .sort((a, b) => (a.userName || '').localeCompare(b.userName || '', 'nl'))
 })
 
 async function loadRegistrations() {
   registrations.value = await fetchAdminRegistrations()
+
+  if (!selectedEventId.value && eventSummaries.value.length > 0) {
+    selectedEventId.value = eventSummaries.value[0].id
+  }
+}
+
+async function refreshGoogleStatus() {
+  try {
+    googleStatus.value = await fetchGoogleSheetsStatus()
+
+    if (googleStatus.value.connected && !hasTriedAutoBackfill.value) {
+      hasTriedAutoBackfill.value = true
+      await syncAllSheets({ quiet: true })
+    }
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
 }
 
 onMounted(async () => {
@@ -189,6 +476,7 @@ onMounted(async () => {
   }
 
   try {
+    await refreshGoogleStatus()
     await loadRegistrations()
   } catch (error) {
     success.value = false
@@ -206,6 +494,69 @@ function formatDate(date) {
   })
 }
 
+async function connectGoogle() {
+  googleLoading.value = true
+  message.value = ''
+
+  try {
+    const authUrl = await fetchGoogleSheetsAuthUrl()
+    window.open(authUrl, '_blank')
+
+    success.value = true
+    message.value = 'Google verbindingspagina geopend. Rond de toestemming af; daarna zetten we de sheets automatisch klaar.'
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  } finally {
+    googleLoading.value = false
+  }
+}
+
+async function syncAllSheets(options = {}) {
+  googleLoading.value = true
+
+  if (!options.quiet) {
+    message.value = ''
+  }
+
+  try {
+    const result = await syncAllGoogleSheets()
+    await loadRegistrations()
+    googleStatus.value = await fetchGoogleSheetsStatus()
+
+    success.value = result.failedCount === 0
+    message.value = result.failedCount === 0
+        ? `${result.syncedCount} event-sheets automatisch bijgewerkt.`
+        : `${result.syncedCount} sheets bijgewerkt, ${result.failedCount} mislukt. Bekijk de foutmelding per event.`
+  } catch (error) {
+    if (!options.quiet) {
+      success.value = false
+      message.value = error.message
+    }
+  } finally {
+    googleLoading.value = false
+  }
+}
+
+async function syncGoogleSheet(event) {
+  googleLoading.value = true
+  message.value = ''
+
+  try {
+    const result = await syncGoogleSheetForEvent(event.eventId)
+
+    success.value = true
+    message.value = `Google Sheet bijgewerkt met ${result.rowCount} registraties.`
+
+    await loadRegistrations()
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  } finally {
+    googleLoading.value = false
+  }
+}
+
 function paymentStatusText(status) {
   if (status === 'pending') return 'Wacht op betaling'
   if (status === 'proof_uploaded') return 'Bewijs geüpload'
@@ -218,9 +569,31 @@ function paymentStatusText(status) {
 function registrationStatusText(status) {
   if (status === 'pending') return 'In behandeling'
   if (status === 'confirmed') return 'Bevestigd'
+  if (status === 'approved') return 'Goedgekeurd'
+  if (status === 'goedgekeurd') return 'Goedgekeurd'
   if (status === 'rejected') return 'Afgewezen'
 
   return status || '-'
+}
+
+function transportOptionText(option) {
+  if (option === 'own_transport') return 'Eigen vervoer'
+  if (option === 'bus') return 'Bus'
+
+  return '-'
+}
+
+function isApprovedRegistration(registration) {
+  return registration.paymentStatus === 'paid'
+      && ['confirmed', 'approved', 'goedgekeurd'].includes(registration.registrationStatus)
+}
+
+function canResendRegistrationMail(registration) {
+  return ['confirmed', 'approved', 'goedgekeurd', 'rejected'].includes(registration.registrationStatus)
+}
+
+function selectEvent(eventId) {
+  selectedEventId.value = eventId
 }
 
 function openPaymentProof(paymentProof) {
@@ -268,7 +641,8 @@ async function approveRegistration(registration) {
   try {
     await updateRegistrationStatus(registration.id, {
       paymentStatus: 'paid',
-      registrationStatus: 'confirmed'
+      registrationStatus: 'confirmed',
+      adminNote: registration.adminNote || null
     })
 
     registration.paymentStatus = 'paid'
@@ -286,7 +660,8 @@ async function markAsRejected(registration) {
   try {
     await updateRegistrationStatus(registration.id, {
       paymentStatus: 'rejected',
-      registrationStatus: 'rejected'
+      registrationStatus: 'rejected',
+      adminNote: registration.adminNote || null
     })
 
     registration.paymentStatus = 'rejected'
@@ -294,6 +669,46 @@ async function markAsRejected(registration) {
 
     success.value = true
     message.value = 'Registratie afgewezen.'
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
+}
+
+async function saveRegistrationNote(registration) {
+  try {
+    await updateRegistrationStatus(registration.id, {
+      paymentStatus: registration.paymentStatus,
+      registrationStatus: registration.registrationStatus,
+      adminNote: registration.adminNote || null
+    })
+
+    success.value = true
+    message.value = 'Admin notitie opgeslagen.'
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
+}
+
+async function resendMail(registration) {
+  try {
+    await resendRegistrationEmail(registration.id)
+
+    success.value = true
+    message.value = 'Statusmail opnieuw verstuurd.'
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
+}
+
+async function exportCsvForEvent(registration) {
+  try {
+    await exportApprovedUsersCsv(registration.eventId, registration.eventTitle, exportFilter.value)
+
+    success.value = true
+    message.value = 'Actuele deelnemerslijst is gedownload.'
   } catch (error) {
     success.value = false
     message.value = error.message
@@ -347,6 +762,27 @@ async function markAsRejected(registration) {
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.csv-button {
+  padding: 10px 13px;
+  border-radius: 14px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 900;
+  transition: 0.2s ease;
+  white-space: nowrap;
+}
+
+.csv-button:hover {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.csv-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .registrations-hero h1 {
@@ -437,6 +873,8 @@ async function markAsRejected(registration) {
 
 /* PANEL */
 .registrations-panel,
+.event-export-panel,
+.google-panel,
 .access-card {
   padding: 30px;
   border-radius: 30px;
@@ -445,8 +883,88 @@ async function markAsRejected(registration) {
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
 }
 
+.event-export-panel {
+  margin-bottom: 34px;
+}
+
+.google-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 34px;
+}
+
+.google-panel h2 {
+  margin-bottom: 10px;
+  color: #0f172a;
+  font-size: clamp(1.75rem, 3vw, 2.7rem);
+  line-height: 1;
+}
+
+.google-panel p {
+  max-width: 760px;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.google-button,
+.google-sync-button,
+.sheet-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.google-button {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.google-button:hover {
+  background: #1d4ed8;
+}
+
+.google-sync-button {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.google-sync-button:hover {
+  background: #3730a3;
+  color: #ffffff;
+}
+
+.google-button:disabled,
+.google-sync-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sheet-link {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.sheet-link:hover {
+  background: #e2e8f0;
+}
+
 .panel-heading {
   margin-bottom: 24px;
+}
+
+.export-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
 }
 
 .panel-heading h2,
@@ -463,9 +981,128 @@ async function markAsRejected(registration) {
   color: #64748b;
 }
 
+.event-export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.event-export-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.event-export-card.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.event-export-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #2563eb;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.event-export-card h3 {
+  margin-bottom: 6px;
+  color: #0f172a;
+  font-size: 1.12rem;
+}
+
+.event-export-card p {
+  color: #64748b;
+}
+
+.event-export-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 0;
+}
+
+.event-export-card dl div {
+  padding: 12px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.event-export-card dt {
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.event-export-card dd {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.event-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.secondary-button {
+  padding: 10px 13px;
+  border-radius: 14px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.secondary-button:hover {
+  background: #cbd5e1;
+}
+
+.event-preview {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.preview-heading h3 {
+  margin-bottom: 5px;
+  color: #0f172a;
+  font-size: 1.35rem;
+}
+
+.preview-heading p {
+  color: #64748b;
+}
+
 /* TABLE */
 .table-wrapper {
   overflow-x: auto;
+}
+
+.table-wrapper.compact {
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
 }
 
 table {
@@ -501,9 +1138,17 @@ td strong {
   gap: 4px;
 }
 
-.user-cell span {
+.user-cell span,
+.extra-cell span {
   color: #64748b;
   font-size: 0.88rem;
+}
+
+.extra-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
 }
 
 /* STATUS */
@@ -530,7 +1175,9 @@ td strong {
 }
 
 .status-pill.paid,
-.status-pill.confirmed {
+.status-pill.confirmed,
+.status-pill.approved,
+.status-pill.goedgekeurd {
   background: #dcfce7;
   color: #166534;
 }
@@ -602,6 +1249,10 @@ td strong {
   text-align: center;
 }
 
+.empty-state.small {
+  padding: 34px 18px;
+}
+
 .empty-state h2 {
   margin-bottom: 10px;
   color: #0f172a;
@@ -654,6 +1305,18 @@ td strong {
   .registrations-panel {
     padding: 22px;
     border-radius: 24px;
+  }
+
+  .google-panel {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .preview-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

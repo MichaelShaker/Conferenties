@@ -1,5 +1,41 @@
 const conferenceService = require("../services/conferenceService");
 const { sendMail } = require("../services/mailService");
+const googleSheetsService = require("../services/googleSheetsService");
+const { escapeHtml } = require("../utils/html");
+const { logAudit } = require("../services/auditService");
+const { createUnsubscribeFooter } = require("../services/unsubscribeService");
+const { logEmail } = require("../services/emailLogService");
+
+function formatDisplayDate(value) {
+    if (!value) return "-";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleDateString("nl-NL", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+    });
+}
+
+function buildEventEmailHtml(conference, user, body) {
+    return `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
+            <h2>Nieuw evenement beschikbaar</h2>
+            <p>Beste ${escapeHtml(user.name || "gebruiker")},</p>
+            <p>${escapeHtml(body).replace(/\n/g, "<br>")}</p>
+            <p><strong>${escapeHtml(conference.title)}</strong></p>
+            <p>Locatie: ${escapeHtml(conference.location)}</p>
+            <p>Datum: ${escapeHtml(formatDisplayDate(conference.date))}</p>
+            <p>Log in om de details te bekijken en je in te schrijven.</p>
+            ${user.id && user.email ? createUnsubscribeFooter(user) : ""}
+        </div>
+    `;
+}
 
 async function getConferences(req, res) {
     try {
@@ -72,7 +108,10 @@ async function createConference(req, res) {
             paymentQrUrl,
             paymentContactName,
             paymentContactPhone,
-            paymentInstructions
+            paymentInstructions,
+            registrationDeadline,
+            emailSubject,
+            emailBody
         } = req.body;
 
         if (!title || !category || !location || !date) {
@@ -109,37 +148,52 @@ async function createConference(req, res) {
             paymentQrUrl: paymentQrUrl || null,
             paymentContactName: paymentContactName || null,
             paymentContactPhone: paymentContactPhone || null,
-            paymentInstructions: paymentInstructions || null
+            paymentInstructions: paymentInstructions || null,
+            registrationDeadline: registrationDeadline || null,
+            emailSubject: emailSubject || null,
+            emailBody: emailBody || null
         });
 
         try {
             const users = await conferenceService.getUsersForConferenceNotification(conference);
+            const subject = conference.emailSubject || `Nieuw evenement: ${conference.title}`;
+            const body = conference.emailBody || "Er is een evenement toegevoegd dat bij jouw profiel past.";
 
-            await Promise.all(
-                users.map(user =>
-                    sendMail(
-                        user.email,
-                        `Nieuw evenement: ${conference.title}`,
-                        `
-            <div style="font-family: Arial; padding: 20px;">
-                <h2>Nieuw evenement toegevoegd</h2>
-                <p>Beste ${user.name || "gebruiker"},</p>
-
-                <p>Er is een nieuw evenement beschikbaar:</p>
-
-                <p><strong>${conference.title}</strong></p>
-                <p>📍 ${conference.location}</p>
-                <p>📅 ${conference.date}</p>
-
-                <p>Log in om je in te schrijven.</p>
-            </div>
-            `
-                    )
-                )
-            );
+            await Promise.allSettled(users.map(async user => {
+                try {
+                    await sendMail(user.email, subject, buildEventEmailHtml(conference, user, body));
+                    await logEmail({
+                        conferenceId: conference.id,
+                        emailType: "event_created",
+                        recipientEmail: user.email,
+                        subject,
+                        status: "sent"
+                    });
+                } catch (error) {
+                    await logEmail({
+                        conferenceId: conference.id,
+                        emailType: "event_created",
+                        recipientEmail: user.email,
+                        subject,
+                        status: "failed",
+                        errorMessage: error.message
+                    });
+                    throw error;
+                }
+            }));
         } catch (mailError) {
             console.error("Event email error:", mailError.message);
         }
+
+        await logAudit({
+            actorUserId: req.user?.id,
+            action: "conference.created",
+            entityType: "conference",
+            entityId: conference.id,
+            details: { title: conference.title }
+        });
+
+        await googleSheetsService.syncConferenceSheetQuietly(conference.id);
 
         res.status(201).json({
             success: true,
@@ -169,6 +223,16 @@ async function updateConference(req, res) {
 
         const updatedConference = await conferenceService.updateConference(id, req.body);
 
+        await logAudit({
+            actorUserId: req.user?.id,
+            action: "conference.updated",
+            entityType: "conference",
+            entityId: Number(id),
+            details: { title: updatedConference.title }
+        });
+
+        await googleSheetsService.syncConferenceSheetQuietly(id);
+
         res.json({
             success: true,
             message: "Conference updated successfully",
@@ -195,9 +259,16 @@ async function deleteConference(req, res) {
             });
         }
 
+        await logAudit({
+            actorUserId: req.user?.id,
+            action: "conference.archived",
+            entityType: "conference",
+            entityId: Number(id)
+        });
+
         res.json({
             success: true,
-            message: "Conference deleted successfully"
+            message: "Conference archived successfully"
         });
     } catch (error) {
         console.error("Error deleting conference:", error.message);
@@ -208,10 +279,339 @@ async function deleteConference(req, res) {
     }
 }
 
+function escapeCsvValue(value) {
+    if (value === null || value === undefined) return "";
+
+    let stringValue = String(value);
+
+    // Prevent Excel formula injection
+    if (/^[=+\-@]/.test(stringValue)) {
+        stringValue = "'" + stringValue;
+    }
+
+    return `"${stringValue.replace(/"/g, '""')}"`;
+}
+
+function formatCsvDate(value) {
+    if (!value) return "";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleDateString("nl-NL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+    });
+}
+
+function isApprovedRegistration(user) {
+    return user.paymentStatus === "paid"
+        && ["confirmed", "approved", "goedgekeurd"].includes(user.registrationStatus);
+}
+
+function formatTransportOption(option) {
+    if (option === "own_transport") return "Eigen vervoer";
+    if (option === "bus") return "Bus tegen aanvullende kosten";
+
+    return option || "";
+}
+
+async function exportApprovedUsersCsv(req, res) {
+    try {
+        const { id } = req.params;
+
+        const conference = await conferenceService.getConferenceById(id);
+
+        if (!conference) {
+            return res.status(404).json({
+                success: false,
+                message: "Conference not found"
+            });
+        }
+
+        const filter = req.query.filter || "all";
+        const users = (await conferenceService.getApprovedUsersForConference(id))
+            .filter(user => {
+                if (filter === "approved") return isApprovedRegistration(user);
+                if (filter === "pending_payment") return user.paymentStatus === "pending";
+                if (filter === "proof_uploaded") return user.paymentStatus === "proof_uploaded";
+                if (filter === "bus") return user.transportOption === "bus";
+                if (filter === "shirts") return !!user.shirtSize;
+                if (filter === "cancelled") return user.cancelledAt;
+                return true;
+            });
+
+        const headers = [
+            "Registratie ID",
+            "Voornaam",
+            "Achternaam",
+            "Volledige naam",
+            "E-mail",
+            "Telefoon",
+            "Shirtmaat",
+            "Vervoer",
+            "Geboortedatum",
+            "Kerk",
+            "Kerk stad",
+            "Woonplaats",
+            "Rang/functie",
+            "Biechtvader",
+            "Allergieën",
+            "Dieet/notities",
+            "Event",
+            "Event datum",
+            "Event locatie",
+            "Betaalstatus",
+            "Registratiestatus",
+            "Admin notitie",
+            "Geannuleerd op",
+            "Op locatie lijst",
+            "Betaalbewijs ontvangen",
+            "Ingeschreven op"
+        ];
+
+        const rows = users.map(user => [
+            user.registrationId,
+            user.firstName,
+            user.lastName,
+            user.userName,
+            user.userEmail,
+            user.phone,
+            user.shirtSize,
+            formatTransportOption(user.transportOption),
+            formatCsvDate(user.birthDate),
+            user.churchName,
+            user.churchCity,
+            user.profileCity,
+            user.rankTitle,
+            user.confessionFather,
+            user.allergies,
+            user.dietaryNotes,
+            user.eventTitle,
+            formatCsvDate(user.eventDate),
+            user.eventLocation,
+            user.paymentStatus,
+            user.registrationStatus,
+            user.adminNote,
+            formatCsvDate(user.cancelledAt),
+            isApprovedRegistration(user) ? "Ja" : "Nee",
+            formatCsvDate(user.paymentProofUploadedAt),
+            formatCsvDate(user.registeredAt)
+        ]);
+
+        const csvContent = [
+            headers.map(escapeCsvValue).join(","),
+            ...rows.map(row => row.map(escapeCsvValue).join(","))
+        ].join("\n");
+
+        const safeTitle = conference.title
+            .replace(/[^a-z0-9]/gi, "_")
+            .toLowerCase();
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="deelnemers_${safeTitle}.csv"`
+        );
+
+        res.send("\uFEFF" + csvContent);
+    } catch (error) {
+        console.error("CSV export error:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Could not export approved users"
+        });
+    }
+}
+
+async function previewConferenceEmail(req, res) {
+    try {
+        const { id } = req.params;
+        const conference = await conferenceService.getConferenceById(id);
+
+        if (!conference) {
+            return res.status(404).json({
+                success: false,
+                message: "Conference not found"
+            });
+        }
+
+        const subject = conference.emailSubject || `Nieuw evenement: ${conference.title}`;
+        const body = conference.emailBody || "Er is een evenement toegevoegd dat bij jouw profiel past.";
+
+        res.json({
+            success: true,
+            data: {
+                subject,
+                html: buildEventEmailHtml(conference, { name: "gebruiker" }, body)
+            }
+        });
+    } catch (error) {
+        console.error("Email preview error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not preview email"
+        });
+    }
+}
+
+async function resendConferenceEmail(req, res) {
+    try {
+        const { id } = req.params;
+        const conference = await conferenceService.getConferenceById(id);
+
+        if (!conference) {
+            return res.status(404).json({
+                success: false,
+                message: "Conference not found"
+            });
+        }
+
+        const users = await conferenceService.getUsersForConferenceNotification(conference);
+        const subject = conference.emailSubject || `Nieuw evenement: ${conference.title}`;
+        const body = conference.emailBody || "Er is een evenement toegevoegd dat bij jouw profiel past.";
+
+        const results = await Promise.allSettled(users.map(async user => {
+            try {
+                await sendMail(user.email, subject, buildEventEmailHtml(conference, user, body));
+                await logEmail({
+                    actorUserId: req.user?.id,
+                    conferenceId: Number(id),
+                    emailType: "event_resend",
+                    recipientEmail: user.email,
+                    subject,
+                    status: "sent"
+                });
+            } catch (error) {
+                await logEmail({
+                    actorUserId: req.user?.id,
+                    conferenceId: Number(id),
+                    emailType: "event_resend",
+                    recipientEmail: user.email,
+                    subject,
+                    status: "failed",
+                    errorMessage: error.message
+                });
+                throw error;
+            }
+        }));
+
+        const sentCount = results.filter(result => result.status === "fulfilled").length;
+
+        await logAudit({
+            actorUserId: req.user?.id,
+            action: "conference.email_resent",
+            entityType: "conference",
+            entityId: Number(id),
+            details: { sentCount, targetCount: users.length }
+        });
+
+        res.json({
+            success: true,
+            message: "Conference email resent",
+            data: {
+                sentCount,
+                failedCount: users.length - sentCount
+            }
+        });
+    } catch (error) {
+        console.error("Email resend error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not resend event email"
+        });
+    }
+}
+
+async function sendConferenceTestEmail(req, res) {
+    try {
+        const { id } = req.params;
+        const conference = await conferenceService.getConferenceById(id);
+
+        if (!conference) {
+            return res.status(404).json({
+                success: false,
+                message: "Conference not found"
+            });
+        }
+
+        const userEmail = req.user?.email;
+
+        if (!userEmail) {
+            return res.status(400).json({
+                success: false,
+                message: "Your admin account has no email address"
+            });
+        }
+
+        const subject = `[TEST] ${conference.emailSubject || `Nieuw evenement: ${conference.title}`}`;
+        const body = conference.emailBody || "Er is een evenement toegevoegd dat bij jouw profiel past.";
+
+        try {
+            await sendMail(
+                userEmail,
+                subject,
+                buildEventEmailHtml(conference, {
+                    id: req.user.id,
+                    name: req.user.name || "admin",
+                    email: userEmail
+                }, body)
+            );
+            await logEmail({
+                actorUserId: req.user?.id,
+                conferenceId: Number(id),
+                emailType: "event_test",
+                recipientEmail: userEmail,
+                subject,
+                status: "sent"
+            });
+        } catch (error) {
+            await logEmail({
+                actorUserId: req.user?.id,
+                conferenceId: Number(id),
+                emailType: "event_test",
+                recipientEmail: userEmail,
+                subject,
+                status: "failed",
+                errorMessage: error.message
+            });
+            throw error;
+        }
+
+        await logAudit({
+            actorUserId: req.user?.id,
+            action: "conference.test_email_sent",
+            entityType: "conference",
+            entityId: Number(id)
+        });
+
+        res.json({
+            success: true,
+            message: "Test email sent",
+            data: { email: userEmail }
+        });
+    } catch (error) {
+        console.error("Test email error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not send test email"
+        });
+    }
+}
+
 module.exports = {
     getConferences,
     getConference,
     createConference,
     updateConference,
-    deleteConference
+    deleteConference,
+    exportApprovedUsersCsv,
+    previewConferenceEmail,
+    resendConferenceEmail,
+    sendConferenceTestEmail
 };

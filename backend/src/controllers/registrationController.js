@@ -1,10 +1,35 @@
 const registrationService = require("../services/registrationService");
 const { sendMail } = require("../services/mailService");
+const googleSheetsService = require("../services/googleSheetsService");
+const { escapeHtml } = require("../utils/html");
+const { logAudit } = require("../services/auditService");
+const { logEmail } = require("../services/emailLogService");
+
+const MAX_PAYMENT_PROOF_LENGTH = 2_500_000;
+
+function isValidPaymentProof(value) {
+    return typeof value === "string"
+        && value.length <= MAX_PAYMENT_PROOF_LENGTH
+        && /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/i.test(value);
+}
+
+function isAcceptedStatus(status) {
+    return ["confirmed", "approved", "goedgekeurd"].includes(status);
+}
+
+function isRejectedStatus(status) {
+    return ["rejected", "denied", "afgewezen"].includes(status);
+}
+
+function didStatusChange(updatedRegistration) {
+    return updatedRegistration.registrationStatus !== updatedRegistration.previousRegistrationStatus
+        || updatedRegistration.paymentStatus !== updatedRegistration.previousPaymentStatus;
+}
 
 async function registerForConference(req, res) {
     try {
         const userId = req.user.id;
-        const { conferenceId } = req.body;
+        const { conferenceId, shirtSize, transportOption } = req.body;
 
         if (!conferenceId) {
             return res.status(400).json({
@@ -13,7 +38,10 @@ async function registerForConference(req, res) {
             });
         }
 
-        const result = await registrationService.createRegistration(userId, conferenceId);
+        const result = await registrationService.createRegistration(userId, conferenceId, {
+            shirtSize,
+            transportOption
+        });
 
         if (result.error) {
             return res.status(result.status).json({
@@ -21,6 +49,8 @@ async function registerForConference(req, res) {
                 message: result.error
             });
         }
+
+        await googleSheetsService.syncConferenceSheetQuietly(conferenceId);
 
         res.status(201).json({
             success: true,
@@ -49,6 +79,13 @@ async function uploadPaymentProof(req, res) {
             });
         }
 
+        if (!isValidPaymentProof(paymentProof)) {
+            return res.status(400).json({
+                success: false,
+                message: "Payment proof must be a PNG, JPG or WebP image under 2.5MB"
+            });
+        }
+
         const updatedRegistration = await registrationService.uploadPaymentProof(
             id,
             userId,
@@ -61,6 +98,8 @@ async function uploadPaymentProof(req, res) {
                 message: "Registration not found"
             });
         }
+
+        await googleSheetsService.syncConferenceSheetQuietly(updatedRegistration.conferenceId);
 
         res.json({
             success: true,
@@ -114,7 +153,7 @@ async function getAllRegistrations(req, res) {
 async function updateRegistration(req, res) {
     try {
         const { id } = req.params;
-        const { paymentStatus, registrationStatus } = req.body;
+        const { paymentStatus, registrationStatus, adminNote } = req.body;
 
         if (!paymentStatus || !registrationStatus) {
             return res.status(400).json({
@@ -126,58 +165,93 @@ async function updateRegistration(req, res) {
         const updatedRegistration = await registrationService.updateRegistrationStatus(
             id,
             paymentStatus,
-            registrationStatus
+            registrationStatus,
+            adminNote
         );
 
-        // 🔥 SEND EMAIL HERE
+        if (!updatedRegistration) {
+            return res.status(404).json({
+                success: false,
+                message: "Registration not found"
+            });
+        }
+
         try {
             const userEmail = updatedRegistration.userEmail;
             const userName = updatedRegistration.userName || "gebruiker";
+            const eventTitle = updatedRegistration.eventTitle || "het event";
 
-            if (registrationStatus === "approved" || registrationStatus === "goedgekeurd") {
+            if (userEmail && didStatusChange(updatedRegistration) && isAcceptedStatus(registrationStatus)) {
+                const subject = "Inschrijving goedgekeurd";
                 await sendMail(
                     userEmail,
-                    "Inschrijving goedgekeurd",
+                    subject,
                     `
-        <div style="font-family: Arial; padding: 20px;">
-            <h2>Je inschrijving is goedgekeurd</h2>
-            <p>Beste ${userName},</p>
-            <p>Je inschrijving voor <strong>${updatedRegistration.eventTitle}</strong> is goedgekeurd.</p>
-            <p>We zien je graag daar!</p>
-        </div>
-        `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
+                        <h2>Je inschrijving is goedgekeurd</h2>
+                        <p>Beste ${escapeHtml(userName)},</p>
+                        <p>Je inschrijving voor <strong>${escapeHtml(eventTitle)}</strong> is goedgekeurd.</p>
+                        <p>We zien je graag daar!</p>
+                    </div>
+                    `
                 );
+                await logEmail({
+                    actorUserId: req.user?.id,
+                    conferenceId: updatedRegistration.eventId,
+                    registrationId: updatedRegistration.id,
+                    emailType: "registration_approved",
+                    recipientEmail: userEmail,
+                    subject,
+                    status: "sent"
+                });
             }
 
-            if (registrationStatus === "denied" || registrationStatus === "afgewezen") {
+            if (userEmail && didStatusChange(updatedRegistration) && isRejectedStatus(registrationStatus)) {
+                const subject = "Inschrijving afgewezen";
                 await sendMail(
                     userEmail,
-                    "Inschrijving afgewezen",
+                    subject,
                     `
-        <div style="font-family: Arial; padding: 20px;">
-            <h2>Je inschrijving is afgewezen</h2>
-            <p>Beste ${userName},</p>
-            <p>Helaas is je inschrijving voor <strong>${updatedRegistration.eventTitle}</strong> afgewezen.</p>
-        </div>
-        `
-                );
-            }
-
-            if (registrationStatus === "denied" || registrationStatus === "afgewezen") {
-                await sendMail(
-                    userEmail,
-                    "Inschrijving afgewezen",
-                    `
-                    <h2>Je inschrijving is afgewezen</h2>
-                    <p>Beste ${userName},</p>
-                    <p>Helaas is je inschrijving afgewezen.</p>
+                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
+                        <h2>Je inschrijving is afgewezen</h2>
+                        <p>Beste ${escapeHtml(userName)},</p>
+                        <p>Helaas is je inschrijving voor <strong>${escapeHtml(eventTitle)}</strong> afgewezen.</p>
+                    </div>
                     `
                 );
+                await logEmail({
+                    actorUserId: req.user?.id,
+                    conferenceId: updatedRegistration.eventId,
+                    registrationId: updatedRegistration.id,
+                    emailType: "registration_rejected",
+                    recipientEmail: userEmail,
+                    subject,
+                    status: "sent"
+                });
             }
 
         } catch (mailError) {
             console.error("Email error:", mailError.message);
+            await logEmail({
+                actorUserId: req.user?.id,
+                conferenceId: updatedRegistration.eventId,
+                registrationId: updatedRegistration.id,
+                emailType: "registration_status",
+                recipientEmail: updatedRegistration.userEmail,
+                subject: "Registratiestatus",
+                status: "failed",
+                errorMessage: mailError.message
+            });
         }
+
+        await googleSheetsService.syncConferenceSheetQuietly(updatedRegistration.eventId);
+        await logAudit({
+            actorUserId: req.user?.id,
+            action: "registration.updated",
+            entityType: "registration",
+            entityId: Number(id),
+            details: { paymentStatus, registrationStatus }
+        });
 
         res.json({
             success: true,
@@ -193,10 +267,133 @@ async function updateRegistration(req, res) {
     }
 }
 
+async function cancelRegistration(req, res) {
+    try {
+        const { id } = req.params;
+        const cancelledRegistration = await registrationService.cancelRegistration(id, req.user.id);
+
+        if (!cancelledRegistration) {
+            return res.status(404).json({
+                success: false,
+                message: "Registration not found"
+            });
+        }
+
+        await googleSheetsService.syncConferenceSheetQuietly(cancelledRegistration.conferenceId);
+        await logAudit({
+            actorUserId: req.user?.id,
+            action: "registration.cancelled",
+            entityType: "registration",
+            entityId: Number(id)
+        });
+
+        res.json({
+            success: true,
+            message: "Registration cancelled",
+            data: cancelledRegistration
+        });
+    } catch (error) {
+        console.error("Error cancelling registration:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not cancel registration"
+        });
+    }
+}
+
+async function resendRegistrationEmail(req, res) {
+    try {
+        const { id } = req.params;
+        const registration = await registrationService.getRegistrationById(id);
+
+        if (!registration) {
+            return res.status(404).json({
+                success: false,
+                message: "Registration not found"
+            });
+        }
+
+        if (!registration.userEmail) {
+            return res.status(400).json({
+                success: false,
+                message: "This user has no email address"
+            });
+        }
+
+        const accepted = isAcceptedStatus(registration.registrationStatus);
+        const rejected = isRejectedStatus(registration.registrationStatus);
+
+        if (!accepted && !rejected) {
+            return res.status(400).json({
+                success: false,
+                message: "Only accepted or rejected registration emails can be resent"
+            });
+        }
+
+        const subject = accepted ? "Inschrijving goedgekeurd" : "Inschrijving afgewezen";
+
+        try {
+            await sendMail(
+            registration.userEmail,
+            subject,
+            `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
+                <h2>${accepted ? "Je inschrijving is goedgekeurd" : "Je inschrijving is afgewezen"}</h2>
+                <p>Beste ${escapeHtml(registration.userName || "gebruiker")},</p>
+                <p>${accepted ? "Je inschrijving voor" : "Helaas is je inschrijving voor"} <strong>${escapeHtml(registration.eventTitle || "het event")}</strong> ${accepted ? "is goedgekeurd." : "afgewezen."}</p>
+            </div>
+            `
+            );
+            await logEmail({
+                actorUserId: req.user?.id,
+                conferenceId: registration.eventId,
+                registrationId: registration.id,
+                emailType: "registration_resend",
+                recipientEmail: registration.userEmail,
+                subject,
+                status: "sent"
+            });
+        } catch (error) {
+            await logEmail({
+                actorUserId: req.user?.id,
+                conferenceId: registration.eventId,
+                registrationId: registration.id,
+                emailType: "registration_resend",
+                recipientEmail: registration.userEmail,
+                subject,
+                status: "failed",
+                errorMessage: error.message
+            });
+            throw error;
+        }
+
+        await logAudit({
+            actorUserId: req.user?.id,
+            action: "registration.email_resent",
+            entityType: "registration",
+            entityId: Number(id),
+            details: { registrationStatus: registration.registrationStatus }
+        });
+
+        res.json({
+            success: true,
+            message: "Registration email resent"
+        });
+    } catch (error) {
+        console.error("Error resending registration email:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not resend registration email"
+        });
+    }
+}
+
 module.exports = {
     registerForConference,
     getMyRegistrations,
     getAllRegistrations,
     updateRegistration,
-    uploadPaymentProof
+    uploadPaymentProof,
+    cancelRegistration,
+    resendRegistrationEmail
 };

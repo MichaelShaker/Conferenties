@@ -4,9 +4,11 @@ async function getProfileByUserId(userId) {
     const [rows] = await pool.query(`
         SELECT
             up.*,
+            u.newsletter_enabled AS newsletterEnabled,
             c.name AS churchName,
             c.city AS churchCity
         FROM user_profiles up
+        INNER JOIN users u ON u.id = up.user_id
         LEFT JOIN churches c ON up.church_id = c.id
         WHERE up.user_id = ?
     `, [userId]);
@@ -25,7 +27,10 @@ async function upsertProfile(userId, profile) {
         rankTitle,
         confessionFather,
         allergies,
-        dietaryNotes
+        dietaryNotes,
+        shirtSize,
+        transportOption,
+        newsletterEnabled
     } = profile;
 
     const profileCompleted =
@@ -48,9 +53,11 @@ async function upsertProfile(userId, profile) {
             confession_father,
             allergies,
             dietary_notes,
+            shirt_size,
+            transport_option,
             profile_completed
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             first_name = VALUES(first_name),
             last_name = VALUES(last_name),
@@ -62,6 +69,8 @@ async function upsertProfile(userId, profile) {
             confession_father = VALUES(confession_father),
             allergies = VALUES(allergies),
             dietary_notes = VALUES(dietary_notes),
+            shirt_size = VALUES(shirt_size),
+            transport_option = VALUES(transport_option),
             profile_completed = VALUES(profile_completed)
     `, [
         userId,
@@ -75,11 +84,13 @@ async function upsertProfile(userId, profile) {
         confessionFather,
         allergies,
         dietaryNotes,
+        shirtSize || null,
+        transportOption || null,
         !!profileCompleted
     ]);
     await pool.query(
-        "UPDATE users SET name = ? WHERE id = ?",
-        [`${firstName} ${lastName}`.trim(), userId]
+        "UPDATE users SET name = ?, newsletter_enabled = ? WHERE id = ?",
+        [`${firstName} ${lastName}`.trim(), newsletterEnabled === false ? 0 : 1, userId]
     );
 
     return getProfileByUserId(userId);

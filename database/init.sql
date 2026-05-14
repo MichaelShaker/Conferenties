@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     confession_father VARCHAR(150),
     allergies TEXT,
     dietary_notes TEXT,
+    shirt_size VARCHAR(20),
+    transport_option VARCHAR(50),
     profile_completed TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -95,11 +97,35 @@ CREATE TABLE IF NOT EXISTS conferences (
     payment_contact_name VARCHAR(150),
     payment_contact_phone VARCHAR(50),
     payment_instructions TEXT,
+    google_sheet_id VARCHAR(255),
+    google_sheet_url VARCHAR(500),
+    google_sheet_last_synced_at TIMESTAMP NULL,
+    google_sheet_last_error TEXT,
+    registration_deadline DATE NULL,
+    email_subject VARCHAR(255),
+    email_body TEXT,
+    archived_at TIMESTAMP NULL,
     PRIMARY KEY (id),
     KEY fk_conference_church (church_id),
     KEY fk_conference_target_church (target_church_id),
     CONSTRAINT fk_conference_church FOREIGN KEY (church_id) REFERENCES churches(id) ON DELETE SET NULL,
     CONSTRAINT fk_conference_target_church FOREIGN KEY (target_church_id) REFERENCES churches(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB;
+
+
+-- =====================
+-- GOOGLE SHEETS CONNECTION
+-- =====================
+CREATE TABLE IF NOT EXISTS google_oauth_tokens (
+                                                   id INT NOT NULL AUTO_INCREMENT,
+                                                   user_id INT NULL,
+                                                   google_email VARCHAR(255),
+    refresh_token LONGTEXT NOT NULL,
+    scope TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY one_connection (id)
     ) ENGINE=InnoDB;
 
 
@@ -116,11 +142,57 @@ CREATE TABLE IF NOT EXISTS registrations (
     payment_proof LONGTEXT,
     payment_proof_uploaded_at TIMESTAMP NULL,
     approved_at TIMESTAMP NULL,
+    shirt_size VARCHAR(20),
+    transport_option VARCHAR(50),
+    admin_note TEXT,
+    cancelled_at TIMESTAMP NULL,
     PRIMARY KEY (id),
     UNIQUE KEY unique_registration (user_id, conference_id),
     KEY fk_reg_conference (conference_id),
     CONSTRAINT fk_reg_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_reg_conference FOREIGN KEY (conference_id) REFERENCES conferences(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB;
+
+
+-- =====================
+-- AUDIT LOGS
+-- =====================
+CREATE TABLE IF NOT EXISTS audit_logs (
+                                          id INT NOT NULL AUTO_INCREMENT,
+                                          actor_user_id INT NULL,
+                                          action VARCHAR(100) NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id INT NULL,
+    details JSON NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_audit_entity (entity_type, entity_id),
+    KEY idx_audit_actor (actor_user_id),
+    CONSTRAINT fk_audit_actor FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB;
+
+
+-- =====================
+-- EMAIL LOGS
+-- =====================
+CREATE TABLE IF NOT EXISTS email_logs (
+                                          id INT NOT NULL AUTO_INCREMENT,
+                                          actor_user_id INT NULL,
+                                          conference_id INT NULL,
+                                          registration_id INT NULL,
+                                          email_type VARCHAR(100) NOT NULL,
+    recipient_email VARCHAR(255),
+    subject VARCHAR(255),
+    status VARCHAR(50) NOT NULL,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_email_conference (conference_id),
+    KEY idx_email_registration (registration_id),
+    KEY idx_email_actor (actor_user_id),
+    CONSTRAINT fk_email_actor FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_email_conference FOREIGN KEY (conference_id) REFERENCES conferences(id) ON DELETE SET NULL,
+    CONSTRAINT fk_email_registration FOREIGN KEY (registration_id) REFERENCES registrations(id) ON DELETE SET NULL
     ) ENGINE=InnoDB;
 
 

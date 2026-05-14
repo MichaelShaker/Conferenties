@@ -10,9 +10,14 @@ import MyRegistrationsView from '../views/MyRegistrationsView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
 import AdminEventsView from '../views/AdminEventsView.vue'
 import AdminRegistrationsView from '../views/AdminRegistrationsView.vue'
+import AdminAuditView from '../views/AdminAuditView.vue'
+import AdminEmailLogsView from '../views/AdminEmailLogsView.vue'
+import AdminUsersView from '../views/AdminUsersView.vue'
+import AdminStatusView from '../views/AdminStatusView.vue'
 import CompleteProfileView from '../views/CompleteProfileView.vue'
 import ForgotPasswordView from "../views/ForgotPasswordView.vue"
 import ResetPasswordView from "../views/ResetPasswordView.vue"
+import UnsubscribeView from "../views/UnsubscribeView.vue"
 
 import { authState } from '../stores/auth.js'
 
@@ -74,6 +79,30 @@ const routes = [
         meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
+        path: '/admin/audit',
+        name: 'admin-audit',
+        component: AdminAuditView,
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+        path: '/admin/email-logs',
+        name: 'admin-email-logs',
+        component: AdminEmailLogsView,
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+        path: '/admin/users',
+        name: 'admin-users',
+        component: AdminUsersView,
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+        path: '/admin/status',
+        name: 'admin-status',
+        component: AdminStatusView,
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
         path: '/complete-profile',
         name: 'complete-profile',
         component: CompleteProfileView,
@@ -94,6 +123,11 @@ const routes = [
         path: "/reset-password/:token",
         name: "reset-password",
         component: ResetPasswordView
+    },
+    {
+        path: "/unsubscribe",
+        name: "unsubscribe",
+        component: UnsubscribeView
     },
 
     // Khelwa mini-app

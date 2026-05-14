@@ -62,6 +62,11 @@
           Profielgegevens worden geladen...
         </div>
 
+        <div v-else-if="missingProfileFields.length" class="profile-warning">
+          <strong>Profiel nog niet compleet</strong>
+          <span>Mis nog: {{ missingProfileFields.join(', ') }}</span>
+        </div>
+
         <div v-else-if="profile" class="details-grid">
           <div class="detail-item">
             <span>Voornaam</span>
@@ -116,6 +121,11 @@
           <div class="detail-item full">
             <span>Dieetwensen</span>
             <strong>{{ profile.dietary_notes || '-' }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <span>Emails over events</span>
+            <strong>{{ profile.newsletterEnabled === 0 ? 'Uit' : 'Aan' }}</strong>
           </div>
         </div>
 
@@ -187,6 +197,24 @@ const initials = computed(() => {
 const formattedBirthDate = computed(() => {
   if (!profile.value?.birth_date) return '-'
   return profile.value.birth_date.slice(0, 10)
+})
+
+const missingProfileFields = computed(() => {
+  if (!profile.value) return []
+
+  const checks = [
+    ['voornaam', profile.value.first_name],
+    ['achternaam', profile.value.last_name],
+    ['telefoon', profile.value.phone],
+    ['geboortedatum', profile.value.birth_date],
+    ['kerk', profile.value.church_id],
+    ['shirtmaat', profile.value.shirt_size],
+    ['vervoer', profile.value.transport_option]
+  ]
+
+  return checks
+      .filter(([, value]) => !value)
+      .map(([label]) => label)
 })
 
 onMounted(async () => {
@@ -495,6 +523,21 @@ onMounted(async () => {
 .empty-profile a {
   color: #2563eb;
   font-weight: 900;
+}
+
+.profile-warning {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.profile-warning strong {
+  color: #78350f;
 }
 
 /* RESPONSIVE */

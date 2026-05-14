@@ -4,7 +4,6 @@ const router = express.Router();
 const khelwaController = require("../../controllers/khelwa/khelwaController");
 const authMiddleware = require("../../middleware/authMiddleware");
 const adminMiddleware = require("../../middleware/adminMiddleware");
-const authMiddlewareOptional = require("../../middleware/optionalAuthMiddleware");
 
 // Public routes
 router.get("/availability", khelwaController.getAvailability);

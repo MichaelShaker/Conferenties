@@ -35,6 +35,7 @@
       <div class="event-card__info">
         <span>{{ formattedDate }}</span>
         <span>{{ event.location }}</span>
+        <span>{{ event.registeredCount || 0 }} / {{ event.capacity }} plekken bezet</span>
       </div>
 
       <RouterLink :to="`/events/${event.id}`" class="event-card__button">

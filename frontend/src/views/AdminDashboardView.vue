@@ -73,6 +73,46 @@
 
             <b>→</b>
           </RouterLink>
+
+          <RouterLink to="/admin/users" class="admin-action">
+            <div>
+              <span>03</span>
+              <h3>Gebruikers beheren</h3>
+              <p>Bekijk profielen, rollen, emailvoorkeuren en registraties per gebruiker.</p>
+            </div>
+
+            <b>→</b>
+          </RouterLink>
+
+          <RouterLink to="/admin/audit" class="admin-action">
+            <div>
+              <span>04</span>
+              <h3>Audit log</h3>
+              <p>Controleer wie events, registraties en gebruikers heeft aangepast.</p>
+            </div>
+
+            <b>→</b>
+          </RouterLink>
+
+          <RouterLink to="/admin/email-logs" class="admin-action">
+            <div>
+              <span>05</span>
+              <h3>Email geschiedenis</h3>
+              <p>Zie welke mails zijn verstuurd en welke eventueel mislukt zijn.</p>
+            </div>
+
+            <b>→</b>
+          </RouterLink>
+
+          <RouterLink to="/admin/status" class="admin-action">
+            <div>
+              <span>06</span>
+              <h3>Systeemstatus</h3>
+              <p>Controleer database, emailconfiguratie, Google Sheets en recente fouten.</p>
+            </div>
+
+            <b>→</b>
+          </RouterLink>
         </div>
       </div>
 

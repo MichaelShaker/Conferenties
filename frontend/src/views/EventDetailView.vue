@@ -21,6 +21,7 @@
           <span>{{ formattedDate }}</span>
           <span>{{ event.location }}</span>
           <span>€{{ Number(event.price).toFixed(2) }}</span>
+          <span>{{ event.registeredCount || 0 }} / {{ event.capacity }} plekken</span>
         </div>
       </div>
     </section>
@@ -44,7 +45,12 @@
 
       <div>
         <span>Capaciteit</span>
-        <strong>{{ event.capacity }}</strong>
+        <strong>{{ event.registeredCount || 0 }} / {{ event.capacity }} bezet</strong>
+      </div>
+
+      <div>
+        <span>Deadline</span>
+        <strong>{{ event.registrationDeadline ? event.registrationDeadline.slice(0, 10) : 'Geen deadline' }}</strong>
       </div>
     </section>
 
@@ -88,7 +94,11 @@
         <div class="register-panel">
           <h3>Aanmelden</h3>
 
-          <p v-if="!isRegistered">
+          <p v-if="registrationClosed && !isRegistered">
+            Aanmelden is gesloten voor dit event.
+          </p>
+
+          <p v-else-if="!isRegistered">
             Schrijf je in om jouw aanmelding te starten.
           </p>
 
@@ -100,14 +110,55 @@
             Je aanmelding is ontvangen. Rond je betaling af en upload je betaalbewijs.
           </p>
 
+          <div v-if="!isRegistered" class="registration-options">
+            <p class="privacy-note">
+              Deze gegevens komen in de deelnemerslijst voor dit event en worden gebruikt voor planning op locatie.
+            </p>
+
+            <label for="shirtSize">Shirtmaat</label>
+            <select id="shirtSize" v-model="shirtSize">
+              <option value="">Kies je maat</option>
+              <option v-for="size in shirtSizes" :key="size" :value="size">
+                {{ size }}
+              </option>
+            </select>
+
+            <label for="transportOption">Vervoer</label>
+            <select id="transportOption" v-model="transportOption">
+              <option value="">Kies vervoer</option>
+              <option value="own_transport">
+                Ik heb eigen vervoer naar de conferentie
+              </option>
+              <option value="bus">
+                Ik maak graag gebruik van de bus tegen aanvullende kosten
+              </option>
+            </select>
+          </div>
+
+          <div v-else class="registration-summary">
+            <div>
+              <span>Shirtmaat</span>
+              <strong>{{ shirtSize || '-' }}</strong>
+            </div>
+            <div>
+              <span>Vervoer</span>
+              <strong>{{ transportOptionText(transportOption) }}</strong>
+            </div>
+          </div>
+
           <button
               v-if="!isRegistered"
               class="action-button primary"
               @click="handleRegister"
-              :disabled="loading"
+              :disabled="loading || registrationClosed"
           >
             {{ loading ? 'Bezig...' : 'Inschrijven' }}
           </button>
+
+          <div v-if="isRegistered" class="signup-confirmation">
+            <strong>Aanmelding ontvangen</strong>
+            <span>{{ paymentStatus === 'proof_uploaded' ? 'Betaalbewijs staat klaar voor controle.' : 'Volg de betalingsstappen hieronder.' }}</span>
+          </div>
 
           <RouterLink to="/events" class="action-button secondary">
             Bekijk andere events
@@ -191,7 +242,8 @@ import {
   fetchConferenceById,
   createRegistration,
   uploadPaymentProof,
-  fetchMyRegistrations
+  fetchMyRegistrations,
+  fetchMyProfile
 } from '../services/api'
 import { authState } from '../stores/auth'
 
@@ -209,6 +261,10 @@ const registrationId = ref(null)
 const paymentStatus = ref('')
 const registrationStatus = ref('')
 const proofPreview = ref('')
+const shirtSize = ref('')
+const transportOption = ref('')
+
+const shirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 const formattedDate = computed(() => {
   if (!event.value?.date) return '-'
@@ -233,11 +289,21 @@ const targetText = computed(() => {
   return 'Iedereen'
 })
 
+const registrationClosed = computed(() => {
+  if (!event.value?.registrationDeadline) return false
+
+  const deadline = new Date(event.value.registrationDeadline)
+  deadline.setHours(23, 59, 59, 999)
+
+  return new Date() > deadline
+})
+
 onMounted(async () => {
   try {
     event.value = await fetchConferenceById(route.params.id)
 
     if (authState.token) {
+      await loadProfileDefaults()
       await checkExistingRegistration()
     }
   } catch (error) {
@@ -245,6 +311,15 @@ onMounted(async () => {
     message.value = error.message
   }
 })
+
+async function loadProfileDefaults() {
+  const profile = await fetchMyProfile()
+
+  if (!profile) return
+
+  shirtSize.value = profile.shirt_size || ''
+  transportOption.value = profile.transport_option || ''
+}
 
 async function checkExistingRegistration() {
   const registrations = await fetchMyRegistrations()
@@ -258,6 +333,8 @@ async function checkExistingRegistration() {
   registrationId.value = existingRegistration.id
   paymentStatus.value = existingRegistration.paymentStatus
   registrationStatus.value = existingRegistration.registrationStatus
+  shirtSize.value = existingRegistration.shirtSize || ''
+  transportOption.value = existingRegistration.transportOption || ''
 }
 
 async function handleRegister() {
@@ -270,7 +347,14 @@ async function handleRegister() {
   message.value = ''
 
   try {
-    const result = await createRegistration(event.value.id)
+    if (!shirtSize.value || !transportOption.value) {
+      throw new Error('Kies je shirtmaat en vervoer voordat je inschrijft.')
+    }
+
+    const result = await createRegistration(event.value.id, {
+      shirtSize: shirtSize.value,
+      transportOption: transportOption.value
+    })
 
     registrationId.value = result.data.id
     isRegistered.value = true
@@ -285,6 +369,13 @@ async function handleRegister() {
   } finally {
     loading.value = false
   }
+}
+
+function transportOptionText(option) {
+  if (option === 'own_transport') return 'Eigen vervoer'
+  if (option === 'bus') return 'Bus tegen aanvullende kosten'
+
+  return '-'
 }
 
 function compressPaymentProof(file, maxWidth = 900, quality = 0.65) {
@@ -558,6 +649,55 @@ async function handlePaymentProofChange(eventInput) {
 .payment-panel p {
   color: #64748b;
   line-height: 1.8;
+}
+
+.registration-options,
+.registration-summary {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.registration-options label,
+.registration-summary span {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.registration-options select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 800;
+}
+
+.registration-options select:focus {
+  outline: 3px solid rgba(37, 99, 235, 0.18);
+  border-color: #2563eb;
+}
+
+.registration-summary div {
+  padding: 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.registration-summary span {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.registration-summary strong {
+  color: #0f172a;
 }
 
 .action-button {

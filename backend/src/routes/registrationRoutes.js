@@ -9,16 +9,20 @@ const {
     getMyRegistrations,
     getAllRegistrations,
     updateRegistration,
-    uploadPaymentProof
+    uploadPaymentProof,
+    cancelRegistration,
+    resendRegistrationEmail
 } = require("../controllers/registrationController");
 
 // user routes
 router.post("/", authMiddleware, registerForConference);
 router.get("/mine", authMiddleware, getMyRegistrations);
+router.put("/:id/cancel", authMiddleware, cancelRegistration);
 
 // admin routes
 router.get("/", authMiddleware, adminMiddleware, getAllRegistrations);
 router.put("/:id", authMiddleware, adminMiddleware, updateRegistration);
+router.post("/:id/resend-email", authMiddleware, adminMiddleware, resendRegistrationEmail);
 router.put("/:id/payment-proof", authMiddleware, uploadPaymentProof);
 
 module.exports = router;

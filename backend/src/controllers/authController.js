@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
+const { unsubscribeByToken } = require("../services/unsubscribeService");
 
 async function register(req, res) {
     try {
@@ -97,6 +98,7 @@ async function login(req, res) {
             {
                 id: user.id,
                 email: user.email,
+                name: user.name,
                 role: user.role
             },
             process.env.JWT_SECRET,
@@ -127,7 +129,42 @@ async function login(req, res) {
     }
 }
 
+async function unsubscribe(req, res) {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                message: "Unsubscribe token is required"
+            });
+        }
+
+        const updated = await unsubscribeByToken(token);
+
+        if (!updated) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Je bent afgemeld voor event-emails."
+        });
+    } catch (error) {
+        console.error("Unsubscribe error:", error.message);
+
+        res.status(400).json({
+            success: false,
+            message: "Deze afmeldlink is ongeldig of verlopen."
+        });
+    }
+}
+
 module.exports = {
     register,
-    login
+    login,
+    unsubscribe
 };

@@ -1,336 +1,319 @@
 <template>
   <main class="admin-events">
-    <!-- HERO -->
-    <section class="admin-events-hero">
+    <section class="page-hero">
       <div>
         <p class="eyebrow">Admin - Events</p>
-        <h1>Events aanmaken en beheren.</h1>
-        <p>
-          Voeg nieuwe events toe, bepaal de doelgroep, stel betaling in en controleer bestaande events.
-        </p>
+        <h1>{{ editingEventId ? 'Event aanpassen' : 'Nieuw event maken' }}</h1>
+        <p>Vul alleen in wat nodig is. Extra regels en betaling staan apart.</p>
       </div>
 
       <div class="hero-count">
         <strong>{{ events.length }}</strong>
-        <span>bestaande events</span>
+        <span>events</span>
       </div>
     </section>
 
     <StatusMessage :message="message" :success="success" />
 
-    <!-- CREATE EVENT -->
-    <section class="create-layout">
-      <!-- FORM -->
-      <form @submit.prevent="handleCreateEvent" class="event-form">
-        <div class="form-header">
-          <p class="eyebrow">Nieuw event</p>
-          <h2>Event toevoegen</h2>
-          <p>Vul de gegevens stap voor stap in. Rechts zie je direct een korte preview.</p>
-        </div>
-
-        <!-- BASIS -->
-        <section class="form-section">
-          <div class="section-title">
-            <span>01</span>
+    <section class="event-builder">
+      <form class="event-form" @submit.prevent="handleSubmitEvent">
+        <section class="form-panel">
+          <div class="panel-heading">
+            <span>1</span>
             <div>
-              <h3>Basisinformatie</h3>
-              <p>Deze informatie ziet de gebruiker als eerste.</p>
+              <h2>Wat is het event?</h2>
+              <p>Naam, datum, plek, prijs en capaciteit.</p>
             </div>
           </div>
 
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="title">Titel</label>
-              <input id="title" v-model="form.title" type="text" placeholder="Bijv. Paas Diner 2026" required />
-            </div>
+          <div class="field-grid">
+            <label class="field wide">
+              <span>Eventnaam</span>
+              <input v-model="form.title" type="text" placeholder="Bijv. Jongerenweekend 2026" required />
+            </label>
 
-            <div class="form-group">
-              <label for="category">Categorie</label>
-              <input id="category" v-model="form.category" type="text" placeholder="Bijv. Kerk evenement" required />
-            </div>
+            <label class="field">
+              <span>Categorie</span>
+              <input v-model="form.category" type="text" placeholder="Bijv. Kamp" required />
+            </label>
 
-            <div class="form-group">
-              <label for="date">Datum</label>
-              <input id="date" v-model="form.date" type="date" required />
-            </div>
+            <label class="field">
+              <span>Datum</span>
+              <input v-model="form.date" type="date" required />
+            </label>
 
-            <div class="form-group">
-              <label for="location">Locatie</label>
-              <input id="location" v-model="form.location" type="text" placeholder="Bijv. Amstelveen" required />
-            </div>
+            <label class="field">
+              <span>Locatie</span>
+              <input v-model="form.location" type="text" placeholder="Bijv. Apeldoorn" required />
+            </label>
 
-            <div class="form-group">
-              <label for="price">Prijs</label>
-              <input id="price" v-model="form.price" type="number" step="0.01" required />
-            </div>
+            <label class="field">
+              <span>Stad</span>
+              <input v-model="form.city" type="text" placeholder="Bijv. Apeldoorn" />
+            </label>
 
-            <div class="form-group">
-              <label for="capacity">Capaciteit</label>
-              <input id="capacity" v-model="form.capacity" type="number" required />
-            </div>
+            <label class="field">
+              <span>Prijs</span>
+              <input v-model="form.price" type="number" step="0.01" min="0" required />
+            </label>
+
+            <label class="field">
+              <span>Plekken</span>
+              <input v-model="form.capacity" type="number" min="1" required />
+            </label>
+
+            <label class="field">
+              <span>Deadline aanmelden</span>
+              <input v-model="form.registrationDeadline" type="date" />
+            </label>
           </div>
         </section>
 
-        <!-- DOELGROEP -->
-        <section class="form-section">
-          <div class="section-title">
-            <span>02</span>
+        <section class="form-panel">
+          <div class="panel-heading">
+            <span>2</span>
             <div>
-              <h3>Doelgroep</h3>
-              <p>Bepaal wie zich mag aanmelden voor dit event.</p>
+              <h2>Wat zien deelnemers?</h2>
+              <p>Beschrijving en afbeelding voor de eventpagina.</p>
             </div>
           </div>
 
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="eventType">Event type</label>
-              <select id="eventType" v-model="form.eventType">
-                <option value="national">Nationaal</option>
-                <option value="local">Lokaal</option>
-              </select>
-            </div>
+          <div class="field-grid">
+            <label class="field wide">
+              <span>Beschrijving</span>
+              <textarea
+                  v-model="form.description"
+                  rows="7"
+                  placeholder="Schrijf hier de tekst die op de eventpagina komt."
+                  required
+              />
+            </label>
 
-            <div class="form-group">
-              <label for="city">Stad van event</label>
-              <input id="city" v-model="form.city" type="text" placeholder="Bijv. Den Haag" />
-            </div>
+            <label class="field wide">
+              <span>Email onderwerp</span>
+              <input v-model="form.emailSubject" type="text" placeholder="Leeg = standaard onderwerp" />
+            </label>
 
-            <div class="form-group">
-              <label for="churchId">Organiserende kerk</label>
-              <select id="churchId" v-model="form.churchId">
+            <label class="field wide">
+              <span>Email bericht</span>
+              <textarea
+                  v-model="form.emailBody"
+                  rows="5"
+                  placeholder="Los bericht voor de uitnodigingsmail. Leeg = standaard tekst."
+              />
+            </label>
+
+            <label class="field wide">
+              <span>Afbeelding</span>
+              <input type="file" accept="image/*" @change="handleImageChange" />
+            </label>
+          </div>
+
+          <div v-if="imagePreview" class="image-focus" @click="setImageFocus">
+            <img
+                :src="imagePreview"
+                alt="Voorbeeld afbeelding"
+                :style="{ objectPosition: `${form.imageFocusX}% ${form.imageFocusY}%` }"
+            />
+            <span
+                class="focus-dot"
+                :style="{ left: `${form.imageFocusX}%`, top: `${form.imageFocusY}%` }"
+            ></span>
+          </div>
+        </section>
+
+        <section class="form-panel">
+          <div class="panel-heading">
+            <span>3</span>
+            <div>
+              <h2>Wie mag aanmelden?</h2>
+              <p>Laat leeg als iedereen welkom is.</p>
+            </div>
+          </div>
+
+          <div class="simple-choice">
+            <button
+                type="button"
+                :class="{ active: form.eventType === 'national' }"
+                @click="form.eventType = 'national'"
+            >
+              Nationaal
+            </button>
+            <button
+                type="button"
+                :class="{ active: form.eventType === 'local' }"
+                @click="form.eventType = 'local'"
+            >
+              Lokaal
+            </button>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Organiserende kerk</span>
+              <select v-model="form.churchId">
                 <option value="">Geen specifieke kerk</option>
                 <option v-for="church in churches" :key="church.id" :value="church.id">
                   {{ church.name }} - {{ church.city }}
                 </option>
               </select>
-            </div>
+            </label>
 
-            <div class="form-group">
-              <label for="targetChurchId">Alleen voor kerk</label>
-              <select id="targetChurchId" v-model="form.targetChurchId">
+            <label class="field">
+              <span>Alleen voor kerk</span>
+              <select v-model="form.targetChurchId">
                 <option value="">Iedereen</option>
                 <option v-for="church in churches" :key="church.id" :value="church.id">
                   {{ church.name }} - {{ church.city }}
                 </option>
               </select>
-            </div>
+            </label>
 
-            <div class="form-group">
-              <label for="minAge">Minimale leeftijd</label>
-              <input id="minAge" v-model="form.minAge" type="number" placeholder="Bijv. 19" />
-            </div>
+            <label class="field">
+              <span>Minimum leeftijd</span>
+              <input v-model="form.minAge" type="number" min="0" placeholder="Geen minimum" />
+            </label>
 
-            <div class="form-group">
-              <label for="maxAge">Maximale leeftijd</label>
-              <input id="maxAge" v-model="form.maxAge" type="number" placeholder="Bijv. 23" />
-            </div>
+            <label class="field">
+              <span>Maximum leeftijd</span>
+              <input v-model="form.maxAge" type="number" min="0" placeholder="Geen maximum" />
+            </label>
 
-            <div class="form-group">
-              <label for="targetCity">Alleen voor stad</label>
-              <input id="targetCity" v-model="form.targetCity" type="text" placeholder="Leeg = iedereen" />
-            </div>
+            <label class="field">
+              <span>Alleen voor stad</span>
+              <input v-model="form.targetCity" type="text" placeholder="Leeg = iedereen" />
+            </label>
 
-            <div class="form-group">
-              <label for="targetRank">Alleen voor rang/functie</label>
-              <input id="targetRank" v-model="form.targetRank" type="text" placeholder="Bijv. diaken" />
-            </div>
-          </div>
-        </section>
-
-        <!-- MEDIA -->
-        <section class="form-section">
-          <div class="section-title">
-            <span>03</span>
-            <div>
-              <h3>Media en beschrijving</h3>
-              <p>Voeg een duidelijke afbeelding en beschrijving toe.</p>
-            </div>
+            <label class="field">
+              <span>Alleen voor rang/functie</span>
+              <input v-model="form.targetRank" type="text" placeholder="Bijv. diaken" />
+            </label>
           </div>
 
-          <div class="form-group">
-            <label for="image">Afbeelding uploaden</label>
-            <input id="image" type="file" accept="image/*" @change="handleImageChange" />
-
-            <div v-if="imagePreview" class="image-focus-wrapper" @click="setImageFocus">
-              <img
-                  :src="imagePreview"
-                  alt="Voorbeeld afbeelding"
-                  class="image-preview"
-                  :style="{ objectPosition: `${form.imageFocusX}% ${form.imageFocusY}%` }"
-              />
-
-              <span
-                  class="focus-dot"
-                  :style="{ left: `${form.imageFocusX}%`, top: `${form.imageFocusY}%` }"
-              ></span>
-            </div>
-
-            <p v-if="imagePreview" class="focus-help">
-              Klik op de afbeelding om te bepalen welk deel zichtbaar moet blijven.
-            </p>
-          </div>
-
-          <div class="form-group">
-            <label for="description">Beschrijving</label>
-            <textarea id="description" v-model="form.description" rows="5" placeholder="Beschrijf kort en duidelijk wat bezoekers kunnen verwachten..." required />
-          </div>
-        </section>
-
-        <!-- BETALING -->
-        <section class="form-section">
-          <div class="section-title">
-            <span>04</span>
-            <div>
-              <h3>Betaling</h3>
-              <p>Voeg betaalinformatie toe zodat deelnemers makkelijk kunnen betalen.</p>
-            </div>
-          </div>
-
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="paymentLink">Betaallink</label>
-              <input id="paymentLink" v-model="form.paymentLink" type="text" placeholder="Tikkie of betaal URL" />
-            </div>
-
-            <div class="form-group">
-              <label for="paymentContactName">Contactpersoon naam</label>
-              <input id="paymentContactName" v-model="form.paymentContactName" type="text" />
-            </div>
-
-            <div class="form-group">
-              <label for="paymentContactPhone">Telefoonnummer</label>
-              <input id="paymentContactPhone" v-model="form.paymentContactPhone" type="text" />
-            </div>
-
-            <div class="form-group">
-              <label for="paymentQrUrl">QR-code uploaden</label>
-              <input id="paymentQrUrl" type="file" accept="image/*" @change="handleQrChange" />
-
-              <img
-                  v-if="qrPreview"
-                  :src="qrPreview"
-                  alt="QR-code voorbeeld"
-                  class="qr-preview"
-              />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="paymentInstructions">Extra instructies</label>
-            <textarea id="paymentInstructions" v-model="form.paymentInstructions" placeholder="Bijv. Zet je naam in de omschrijving bij betaling." />
-          </div>
-        </section>
-
-        <!-- REQUIREMENTS -->
-        <section class="requirements-panel">
-          <div>
-            <span>05</span>
-            <h3>Vereiste profielgegevens</h3>
-            <p>Kies welke profielgegevens verplicht zijn voordat iemand zich mag inschrijven.</p>
-          </div>
-
-          <div class="requirements-list">
-            <label class="requirement-row">
+          <div class="checkbox-group">
+            <label>
               <input v-model="form.requiresChurch" type="checkbox" />
               <span>Kerk verplicht</span>
             </label>
-
-            <label class="requirement-row">
+            <label>
               <input v-model="form.requiresRank" type="checkbox" />
               <span>Rang/functie verplicht</span>
             </label>
-
-            <label class="requirement-row">
+            <label>
               <input v-model="form.requiresConfessionFather" type="checkbox" />
               <span>Biechtvader verplicht</span>
             </label>
-
-            <label class="requirement-row">
+            <label>
               <input v-model="form.requiresAllergies" type="checkbox" />
               <span>Allergieën verplicht</span>
             </label>
           </div>
         </section>
 
-        <div class="submit-bar">
-          <p>Controleer alles goed voordat je het event toevoegt.</p>
+        <section class="form-panel">
+          <div class="panel-heading">
+            <span>4</span>
+            <div>
+              <h2>Hoe betalen ze?</h2>
+              <p>Tikkie, QR-code en contactpersoon.</p>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label class="field wide">
+              <span>Betaallink</span>
+              <input v-model="form.paymentLink" type="url" placeholder="https://..." />
+            </label>
+
+            <label class="field">
+              <span>Contactpersoon</span>
+              <input v-model="form.paymentContactName" type="text" placeholder="Naam" />
+            </label>
+
+            <label class="field">
+              <span>Telefoonnummer</span>
+              <input v-model="form.paymentContactPhone" type="text" placeholder="+31..." />
+            </label>
+
+            <label class="field wide">
+              <span>QR-code</span>
+              <input type="file" accept="image/*" @change="handleQrChange" />
+            </label>
+          </div>
+
+          <img v-if="qrPreview" :src="qrPreview" alt="QR-code voorbeeld" class="qr-preview" />
+
+          <label class="field">
+            <span>Betaalinstructies</span>
+            <textarea
+                v-model="form.paymentInstructions"
+                rows="4"
+                placeholder="Bijv. Zet je naam in de omschrijving."
+            />
+          </label>
+        </section>
+
+        <div class="submit-panel">
+          <div>
+            <strong>Klaar?</strong>
+            <span>Het event verschijnt direct op de website.</span>
+          </div>
 
           <button class="submit-button" type="submit" :disabled="loading">
-            {{ loading ? 'Bezig...' : 'Event toevoegen' }}
+            {{ loading ? 'Even bezig...' : (editingEventId ? 'Event opslaan' : 'Event toevoegen') }}
+          </button>
+
+          <button v-if="editingEventId" class="cancel-edit-button" type="button" @click="cancelEdit">
+            Annuleren
           </button>
         </div>
       </form>
 
-      <!-- PREVIEW -->
-      <aside class="preview-panel">
-        <div class="preview-sticky">
+      <aside class="side-panel">
+        <div class="preview-box">
           <p class="eyebrow">Preview</p>
-          <h2>Zo ziet je event eruit</h2>
-
-          <div class="event-preview-card">
-            <div class="preview-image">
-              <img
-                  v-if="imagePreview"
-                  :src="imagePreview"
-                  alt="Event preview"
-                  :style="{ objectPosition: `${form.imageFocusX}% ${form.imageFocusY}%` }"
-              />
-
-              <span v-else>Geen afbeelding</span>
-            </div>
-
-            <div class="preview-content">
-              <span class="preview-category">
-                {{ form.category || 'Categorie' }}
-              </span>
-
-              <h3>{{ form.title || 'Event titel' }}</h3>
-
-              <div class="preview-info">
-                <div>
-                  <span>Datum</span>
-                  <strong>{{ form.date || '-' }}</strong>
-                </div>
-
-                <div>
-                  <span>Locatie</span>
-                  <strong>{{ form.location || '-' }}</strong>
-                </div>
-
-                <div>
-                  <span>Prijs</span>
-                  <strong>€{{ Number(form.price || 0).toFixed(2) }}</strong>
-                </div>
-
-                <div>
-                  <span>Capaciteit</span>
-                  <strong>{{ form.capacity || '-' }}</strong>
-                </div>
-              </div>
-            </div>
+          <div class="preview-image">
+            <img
+                v-if="imagePreview"
+                :src="imagePreview"
+                alt="Event preview"
+                :style="{ objectPosition: `${form.imageFocusX}% ${form.imageFocusY}%` }"
+            />
+            <span v-else>Geen afbeelding</span>
           </div>
 
-          <div class="admin-help">
-            <h3>Checklist</h3>
-
-            <ul>
-              <li>Heeft het event een duidelijke titel?</li>
-              <li>Klopt de datum en locatie?</li>
-              <li>Is de doelgroep goed ingesteld?</li>
-              <li>Is de betaalinformatie duidelijk?</li>
-            </ul>
+          <div class="preview-content">
+            <span>{{ form.category || 'Categorie' }}</span>
+            <h2>{{ form.title || 'Eventnaam' }}</h2>
+            <dl>
+              <div>
+                <dt>Datum</dt>
+                <dd>{{ form.date || '-' }}</dd>
+              </div>
+              <div>
+                <dt>Locatie</dt>
+                <dd>{{ form.location || '-' }}</dd>
+              </div>
+              <div>
+                <dt>Prijs</dt>
+                <dd>€{{ Number(form.price || 0).toFixed(2) }}</dd>
+              </div>
+              <div>
+                <dt>Plekken</dt>
+                <dd>{{ form.capacity || '-' }}</dd>
+              </div>
+            </dl>
           </div>
         </div>
       </aside>
     </section>
 
-    <!-- EXISTING EVENTS -->
     <section class="events-overview">
       <div class="overview-heading">
         <div>
           <p class="eyebrow">Overzicht</p>
           <h2>Bestaande events</h2>
-          <p>Bekijk snel welke events al in het systeem staan.</p>
+          <p>Alle events die nu in het systeem staan.</p>
         </div>
       </div>
 
@@ -345,36 +328,45 @@
             <th>Categorie</th>
             <th>Leeftijd</th>
             <th>Prijs</th>
-            <th>Capaciteit</th>
+            <th>Plekken</th>
             <th>Actie</th>
           </tr>
           </thead>
 
           <tbody>
           <tr v-for="event in events" :key="event.id">
-            <td>
-              <strong>{{ event.title }}</strong>
-            </td>
-
+            <td><strong>{{ event.title }}</strong></td>
             <td>{{ event.event_type || event.eventType || 'national' }}</td>
             <td>{{ formatDate(event.date) }}</td>
             <td>{{ event.location }}</td>
             <td>{{ event.category }}</td>
-
             <td>
-                <span v-if="event.min_age || event.max_age">
-                  {{ event.min_age || '-' }} - {{ event.max_age || '-' }}
-                </span>
+              <span v-if="event.minAge || event.maxAge">
+                {{ event.minAge || '-' }} - {{ event.maxAge || '-' }}
+              </span>
               <span v-else>Iedereen</span>
             </td>
-
             <td>€{{ Number(event.price).toFixed(2) }}</td>
-            <td>{{ event.capacity }}</td>
-
+            <td>{{ event.registeredCount || 0 }} / {{ event.capacity }}</td>
             <td>
               <button class="delete-button" @click="removeEvent(event.id)">
-                Verwijderen
+                Archiveren
               </button>
+              <button class="edit-button" @click="startEdit(event)">
+                Bewerken
+              </button>
+              <button class="mail-button" @click="resendEventMail(event)">
+                Mail opnieuw
+              </button>
+              <button class="edit-button" @click="sendTestMail(event)">
+                Test mail
+              </button>
+              <button class="edit-button" @click="syncEventSheet(event)">
+                Sheet sync
+              </button>
+              <a v-if="event.googleSheetUrl" class="sheet-link" :href="event.googleSheetUrl" target="_blank">
+                Open Sheet
+              </a>
             </td>
           </tr>
           </tbody>
@@ -390,6 +382,10 @@ import StatusMessage from '../components/StatusMessage.vue'
 import {
   fetchConferences,
   createConference,
+  updateConference,
+  resendConferenceEmail,
+  sendConferenceTestEmail,
+  syncGoogleSheetForEvent,
   deleteConference,
   fetchChurches
 } from '../services/api'
@@ -401,6 +397,7 @@ const events = ref([])
 const churches = ref([])
 const imagePreview = ref('')
 const qrPreview = ref('')
+const editingEventId = ref(null)
 
 const form = reactive({
   title: '',
@@ -431,7 +428,10 @@ const form = reactive({
   paymentQrUrl: '',
   paymentContactName: '',
   paymentContactPhone: '',
-  paymentInstructions: ''
+  paymentInstructions: '',
+  registrationDeadline: '',
+  emailSubject: '',
+  emailBody: ''
 })
 
 function formatDate(date) {
@@ -565,12 +565,64 @@ function resetForm() {
   form.paymentContactName = ''
   form.paymentContactPhone = ''
   form.paymentInstructions = ''
+  form.registrationDeadline = ''
+  form.emailSubject = ''
+  form.emailBody = ''
+  editingEventId.value = null
 
   imagePreview.value = ''
   qrPreview.value = ''
 }
 
-async function handleCreateEvent() {
+function normalizeDateInput(value) {
+  if (!value) return ''
+  return String(value).slice(0, 10)
+}
+
+function startEdit(event) {
+  editingEventId.value = event.id
+
+  form.title = event.title || ''
+  form.category = event.category || ''
+  form.date = normalizeDateInput(event.date)
+  form.location = event.location || ''
+  form.price = Number(event.price || 0)
+  form.capacity = Number(event.capacity || 100)
+  form.image = event.image || ''
+  form.description = event.description || ''
+
+  form.eventType = event.eventType || 'national'
+  form.city = event.city || ''
+  form.churchId = event.churchId || ''
+  form.minAge = event.minAge || ''
+  form.maxAge = event.maxAge || ''
+  form.requiresChurch = !!event.requiresChurch
+  form.requiresRank = !!event.requiresRank
+  form.requiresConfessionFather = !!event.requiresConfessionFather
+  form.requiresAllergies = !!event.requiresAllergies
+  form.targetChurchId = event.targetChurchId || ''
+  form.targetCity = event.targetCity || ''
+  form.targetRank = event.targetRank || ''
+
+  form.paymentLink = event.paymentLink || ''
+  form.paymentQrUrl = event.paymentQrUrl || ''
+  form.paymentContactName = event.paymentContactName || ''
+  form.paymentContactPhone = event.paymentContactPhone || ''
+  form.paymentInstructions = event.paymentInstructions || ''
+  form.registrationDeadline = normalizeDateInput(event.registrationDeadline)
+  form.emailSubject = event.emailSubject || ''
+  form.emailBody = event.emailBody || ''
+
+  imagePreview.value = form.image
+  qrPreview.value = form.paymentQrUrl
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function cancelEdit() {
+  resetForm()
+}
+
+async function handleSubmitEvent() {
   loading.value = true
   message.value = ''
 
@@ -584,16 +636,33 @@ async function handleCreateEvent() {
       minAge: form.minAge ? Number(form.minAge) : null,
       maxAge: form.maxAge ? Number(form.maxAge) : null,
       imageFocusX: Number(form.imageFocusX || 50),
-      imageFocusY: Number(form.imageFocusY || 50)
+      imageFocusY: Number(form.imageFocusY || 50),
+      registrationDeadline: form.registrationDeadline || null,
+      emailSubject: form.emailSubject || null,
+      emailBody: form.emailBody || null
     }
 
-    const response = await createConference(payload)
+    const wasEditing = !!editingEventId.value
+    const eventId = editingEventId.value
+    const response = wasEditing
+        ? await updateConference(editingEventId.value, payload)
+        : await createConference(payload)
 
-    events.value.unshift(response.data)
+    if (wasEditing) {
+      events.value = events.value.map(event => event.id === eventId ? response.data : event)
+    } else {
+      events.value.unshift(response.data)
+
+      if (response.data.googleSheetUrl) {
+        message.value = 'Event succesvol toegevoegd. De Google Sheet is automatisch aangemaakt.'
+      }
+    }
     resetForm()
 
     success.value = true
-    message.value = 'Event succesvol toegevoegd.'
+    if (!message.value) {
+      message.value = wasEditing ? 'Event succesvol bijgewerkt.' : 'Event succesvol toegevoegd.'
+    }
   } catch (error) {
     success.value = false
     message.value = error.message
@@ -602,12 +671,60 @@ async function handleCreateEvent() {
   }
 }
 
+async function resendEventMail(event) {
+  try {
+    const response = await resendConferenceEmail(event.id)
+
+    success.value = true
+    message.value = `Email opnieuw verstuurd naar ${response.data.sentCount} gebruikers.`
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
+}
+
+async function sendTestMail(event) {
+  try {
+    const response = await sendConferenceTestEmail(event.id)
+
+    success.value = true
+    message.value = `Testmail verstuurd naar ${response.data.email}.`
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
+}
+
+async function syncEventSheet(event) {
+  try {
+    const response = await syncGoogleSheetForEvent(event.id)
+
+    events.value = events.value.map(existingEvent => (
+      existingEvent.id === event.id
+        ? {
+          ...existingEvent,
+          googleSheetId: response.spreadsheetId || existingEvent.googleSheetId,
+          googleSheetUrl: response.spreadsheetUrl || existingEvent.googleSheetUrl,
+          googleSheetLastSyncedAt: new Date().toISOString(),
+          googleSheetLastError: null
+        }
+        : existingEvent
+    ))
+
+    success.value = true
+    message.value = `Sheet bijgewerkt met ${response.rowCount} registraties.`
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
+}
+
 async function removeEvent(id) {
   try {
     await deleteConference(id)
     events.value = events.value.filter(event => event.id !== id)
     success.value = true
-    message.value = 'Event verwijderd.'
+    message.value = 'Event gearchiveerd. Registraties blijven bewaard.'
   } catch (error) {
     success.value = false
     message.value = error.message
@@ -618,190 +735,149 @@ async function removeEvent(id) {
 <style scoped>
 .admin-events {
   min-height: 100vh;
-  background: #f8fafc;
-  padding-bottom: 80px;
+  background: #f6f8fb;
+  padding-bottom: 72px;
 }
 
-/* HERO */
-.admin-events-hero {
-  position: relative;
-  overflow: hidden;
-  min-height: 390px;
+.page-hero {
+  min-height: 330px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 40px;
-  padding: 90px max(4vw, 32px) 66px;
-  background:
-      radial-gradient(circle at 86% 16%, rgba(37, 99, 235, 0.18), transparent 30%),
-      linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #eef4ff 100%);
+  gap: 32px;
+  padding: 84px max(4vw, 28px) 54px;
+  background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.admin-events-hero::after {
-  content: "";
-  position: absolute;
-  right: -120px;
-  bottom: -150px;
-  width: 360px;
-  height: 360px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
-}
-
-.admin-events-hero > div {
-  position: relative;
-  z-index: 2;
+.page-hero > div:first-child {
+  max-width: 820px;
 }
 
 .eyebrow {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: #2563eb;
   font-size: 0.76rem;
   font-weight: 900;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.admin-events-hero h1 {
-  max-width: 820px;
-  margin-bottom: 18px;
+.page-hero h1 {
+  margin-bottom: 14px;
   color: #0f172a;
-  font-size: clamp(3rem, 6vw, 5.5rem);
-  line-height: 0.92;
-  letter-spacing: -0.08em;
+  font-size: clamp(3rem, 6vw, 5.4rem);
+  line-height: 0.95;
 }
 
-.admin-events-hero p {
-  max-width: 680px;
+.page-hero p {
   color: #64748b;
-  font-size: 1.08rem;
-  line-height: 1.8;
+  font-size: 1.06rem;
+  line-height: 1.7;
 }
 
 .hero-count {
-  width: 155px;
-  height: 155px;
+  min-width: 132px;
+  min-height: 132px;
   display: grid;
   place-items: center;
   text-align: center;
-  border-radius: 36px;
+  border-radius: 8px;
   background: #0f172a;
-  color: white;
-  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.22);
+  color: #ffffff;
 }
 
 .hero-count strong {
   display: block;
-  font-size: 3.2rem;
+  font-size: 3rem;
   line-height: 1;
 }
 
 .hero-count span {
   display: block;
-  margin-top: 8px;
+  margin-top: 7px;
   color: #cbd5e1;
-  font-size: 0.88rem;
   font-weight: 800;
 }
 
-/* LAYOUT */
-.create-layout {
-  width: min(1280px, 92%);
-  margin: 46px auto 0;
+.event-builder {
+  width: min(1240px, 92%);
+  margin: 34px auto 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 390px;
-  gap: 34px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
   align-items: start;
 }
 
 .event-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  gap: 18px;
 }
 
-.form-header {
-  margin-bottom: 6px;
-}
-
-.form-header h2,
-.overview-heading h2 {
-  margin-bottom: 10px;
-  color: #0f172a;
-  font-size: clamp(2rem, 4vw, 3.2rem);
-  line-height: 1;
-  letter-spacing: -0.06em;
-}
-
-.form-header p,
-.overview-heading p {
-  color: #64748b;
-}
-
-/* FORM SECTIONS */
-.form-section,
-.requirements-panel,
-.submit-bar,
+.form-panel,
+.submit-panel,
+.preview-box,
 .events-overview {
-  border-radius: 28px;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
 }
 
-.form-section {
-  padding: 28px;
+.form-panel {
+  padding: 24px;
 }
 
-.section-title {
+.panel-heading {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 14px;
+  margin-bottom: 22px;
 }
 
-.section-title span,
-.requirements-panel > div:first-child span {
-  flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+.panel-heading > span {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #0f172a;
   color: #ffffff;
   font-weight: 900;
 }
 
-.section-title h3,
-.requirements-panel h3 {
+.panel-heading h2,
+.overview-heading h2 {
   margin-bottom: 5px;
   color: #0f172a;
-  font-size: 1.25rem;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  line-height: 1.1;
 }
 
-.section-title p,
-.requirements-panel p {
+.panel-heading p,
+.overview-heading p {
   color: #64748b;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
-.form-grid {
+.field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 14px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
+.field {
+  display: grid;
+  gap: 8px;
 }
 
-.form-group label {
-  color: #0f172a;
-  font-size: 0.9rem;
+.field.wide {
+  grid-column: 1 / -1;
+}
+
+.field span {
+  color: #334155;
+  font-size: 0.86rem;
   font-weight: 900;
 }
 
@@ -809,41 +885,40 @@ input,
 select,
 textarea {
   width: 100%;
-  min-height: 50px;
-  padding: 13px 15px;
-  border-radius: 16px;
-  border: 1px solid #dbe3ef;
+  min-height: 46px;
+  padding: 12px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
   background: #ffffff;
   color: #0f172a;
   font: inherit;
   outline: none;
-  transition: 0.2s ease;
 }
 
 textarea {
+  min-height: 132px;
   resize: vertical;
-  min-height: 140px;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-/* IMAGE PREVIEW */
-.image-focus-wrapper {
+.image-focus {
   position: relative;
-  height: 260px;
-  margin-top: 12px;
+  height: 240px;
+  margin-top: 16px;
   overflow: hidden;
-  border-radius: 22px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
   cursor: crosshair;
 }
 
-.image-preview {
+.image-focus img,
+.preview-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -851,170 +926,141 @@ textarea:focus {
 
 .focus-dot {
   position: absolute;
-  width: 18px;
-  height: 18px;
-  border: 3px solid white;
+  width: 16px;
+  height: 16px;
+  border: 3px solid #ffffff;
   border-radius: 999px;
   background: #2563eb;
   transform: translate(-50%, -50%);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.35);
 }
 
-.focus-help {
-  margin-top: 10px;
-  color: #64748b;
-  font-size: 0.9rem;
-  font-weight: 700;
+.simple-choice {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.simple-choice button,
+.submit-button,
+.delete-button {
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.simple-choice button {
+  padding: 12px;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.simple-choice button.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 11px 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-weight: 800;
+}
+
+.checkbox-group input {
+  width: 18px;
+  min-height: 18px;
 }
 
 .qr-preview {
   width: 130px;
-  margin-top: 12px;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  margin: 14px 0;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
 }
 
-/* REQUIREMENTS */
-.requirements-panel {
-  display: grid;
-  grid-template-columns: 1fr 1.3fr;
-  gap: 24px;
-  padding: 28px;
-  background: #0f172a;
-  color: white;
-}
-
-.requirements-panel h3 {
-  color: white;
-}
-
-.requirements-panel p {
-  color: #cbd5e1;
-}
-
-.requirements-panel > div:first-child {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.requirements-panel > div:first-child span {
-  background: #2563eb;
-}
-
-.requirements-list {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.requirement-row {
+.submit-panel {
   display: flex;
   align-items: center;
-  gap: 11px;
-  min-height: 54px;
-  padding: 13px 15px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
-  cursor: pointer;
-}
-
-.requirement-row input {
-  width: 17px;
-  height: 17px;
-  min-height: unset;
-  box-shadow: none;
-}
-
-.requirement-row span {
-  font-size: 0.92rem;
-  font-weight: 800;
-}
-
-/* SUBMIT */
-.submit-bar {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 22px;
-  padding: 20px 22px;
+  gap: 18px;
+  padding: 18px;
 }
 
-.submit-bar p {
+.submit-panel strong,
+.submit-panel span {
+  display: block;
+}
+
+.submit-panel strong {
+  color: #0f172a;
+}
+
+.submit-panel span {
+  margin-top: 4px;
   color: #64748b;
-  font-weight: 700;
 }
 
 .submit-button {
   min-width: 180px;
-  padding: 14px 20px;
-  border-radius: 16px;
+  padding: 13px 18px;
   background: #2563eb;
-  color: white;
-  font-weight: 900;
-  transition: 0.2s ease;
+  color: #ffffff;
 }
 
 .submit-button:hover {
   background: #1d4ed8;
-  transform: translateY(-2px);
 }
 
 .submit-button:disabled {
-  opacity: 0.65;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* PREVIEW */
-.preview-panel {
-  position: relative;
-}
-
-.preview-sticky {
+.side-panel {
   position: sticky;
-  top: 110px;
+  top: 100px;
 }
 
-.preview-sticky h2 {
-  margin-bottom: 20px;
-  color: #0f172a;
-  font-size: 1.7rem;
-  letter-spacing: -0.05em;
-}
-
-.event-preview-card,
-.admin-help {
+.preview-box {
   overflow: hidden;
-  border-radius: 28px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.preview-box > .eyebrow {
+  padding: 18px 18px 0;
 }
 
 .preview-image {
-  height: 220px;
+  height: 190px;
   display: grid;
   place-items: center;
+  margin: 14px 18px 0;
+  overflow: hidden;
+  border-radius: 8px;
   background: #e2e8f0;
   color: #64748b;
   font-weight: 900;
 }
 
-.preview-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .preview-content {
-  padding: 22px;
+  padding: 18px;
 }
 
-.preview-category {
+.preview-content > span {
   display: inline-flex;
-  margin-bottom: 12px;
-  padding: 7px 12px;
+  margin-bottom: 10px;
+  padding: 6px 9px;
   border-radius: 999px;
   background: #dbeafe;
   color: #2563eb;
@@ -1022,64 +1068,51 @@ textarea:focus {
   font-weight: 900;
 }
 
-.preview-content h3 {
-  margin-bottom: 18px;
+.preview-content h2 {
+  margin-bottom: 14px;
   color: #0f172a;
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   line-height: 1.1;
-  letter-spacing: -0.05em;
 }
 
-.preview-info {
+.preview-content dl {
   display: grid;
-  gap: 10px;
+  gap: 9px;
+  margin: 0;
 }
 
-.preview-info div {
+.preview-content dl div {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 10px;
+  padding-bottom: 9px;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.preview-info span {
+.preview-content dt,
+.preview-content dd {
+  margin: 0;
+}
+
+.preview-content dt {
   color: #64748b;
   font-weight: 800;
 }
 
-.preview-info strong {
+.preview-content dd {
   color: #0f172a;
   text-align: right;
+  font-weight: 900;
 }
 
-.admin-help {
-  margin-top: 18px;
-  padding: 22px;
-}
-
-.admin-help h3 {
-  margin-bottom: 12px;
-  color: #0f172a;
-}
-
-.admin-help ul {
-  display: grid;
-  gap: 10px;
-  padding-left: 18px;
-  color: #64748b;
-  line-height: 1.6;
-}
-
-/* OVERVIEW */
 .events-overview {
-  width: min(1280px, 92%);
-  margin: 48px auto 0;
-  padding: 30px;
+  width: min(1240px, 92%);
+  margin: 36px auto 0;
+  padding: 24px;
 }
 
 .overview-heading {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .events-table-wrapper {
@@ -1093,18 +1126,19 @@ table {
 
 th {
   text-align: left;
-  padding: 15px;
+  padding: 14px;
   color: #64748b;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
 }
 
 td {
-  padding: 16px 15px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 15px 14px;
   color: #334155;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 td strong {
@@ -1112,51 +1146,36 @@ td strong {
 }
 
 .delete-button {
-  padding: 10px 14px;
-  border-radius: 14px;
+  padding: 10px 12px;
   background: #fee2e2;
   color: #dc2626;
-  font-weight: 900;
-  transition: 0.2s ease;
 }
 
 .delete-button:hover {
   background: #dc2626;
-  color: white;
+  color: #ffffff;
 }
 
-/* RESPONSIVE */
 @media (max-width: 1100px) {
-  .create-layout {
+  .event-builder {
     grid-template-columns: 1fr;
   }
 
-  .preview-sticky {
+  .side-panel {
     position: static;
   }
 }
 
-@media (max-width: 780px) {
-  .admin-events-hero {
+@media (max-width: 760px) {
+  .page-hero,
+  .submit-panel {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .hero-count {
-    width: 125px;
-    height: 125px;
-    border-radius: 30px;
-  }
-
-  .form-grid,
-  .requirements-panel,
-  .requirements-list {
+  .field-grid,
+  .checkbox-group {
     grid-template-columns: 1fr;
-  }
-
-  .submit-bar {
-    align-items: stretch;
-    flex-direction: column;
   }
 
   .submit-button {
@@ -1165,23 +1184,17 @@ td strong {
 }
 
 @media (max-width: 560px) {
-  .admin-events-hero {
-    padding: 70px 24px 58px;
+  .page-hero {
+    padding: 70px 24px 46px;
   }
 
-  .admin-events-hero h1 {
+  .page-hero h1 {
     font-size: 3rem;
   }
 
-  .form-section,
-  .requirements-panel,
+  .form-panel,
   .events-overview {
-    padding: 22px;
-    border-radius: 22px;
-  }
-
-  .section-title {
-    flex-direction: column;
+    padding: 18px;
   }
 }
 </style>

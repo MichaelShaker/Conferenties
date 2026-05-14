@@ -4,7 +4,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const {
     getMyProfile,
     updateMyProfile
-} = require("../controllers/ProfileController");
+} = require("../controllers/profileController");
 
 const router = express.Router();
 

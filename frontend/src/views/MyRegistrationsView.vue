@@ -76,7 +76,27 @@
               <span>Betaalstatus</span>
               <strong>{{ registration.paymentStatus }}</strong>
             </div>
+
+            <div v-if="registration.registrationDeadline">
+              <span>Deadline</span>
+              <strong>{{ formatDate(registration.registrationDeadline) }}</strong>
+            </div>
           </div>
+
+          <div class="timeline">
+            <span :class="{ done: true }">Aangemeld</span>
+            <span :class="{ done: registration.paymentStatus !== 'pending' }">Betaalbewijs</span>
+            <span :class="{ done: registration.registrationStatus === 'confirmed' }">Bevestigd</span>
+          </div>
+
+          <button
+              v-if="!registration.cancelledAt && registration.registrationStatus !== 'confirmed'"
+              class="cancel-registration-button"
+              type="button"
+              @click="cancelMyRegistration(registration)"
+          >
+            Inschrijving annuleren
+          </button>
         </div>
       </article>
     </section>
@@ -100,7 +120,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import StatusMessage from '../components/StatusMessage.vue'
-import { fetchMyRegistrations } from '../services/api'
+import { cancelRegistration, fetchMyRegistrations } from '../services/api'
 
 const loading = ref(false)
 const message = ref('')
@@ -130,6 +150,20 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function cancelMyRegistration(registration) {
+  try {
+    await cancelRegistration(registration.id)
+    registration.registrationStatus = 'cancelled'
+    registration.cancelledAt = new Date().toISOString()
+
+    success.value = true
+    message.value = 'Je inschrijving is geannuleerd.'
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
+}
 </script>
 
 <style scoped>
@@ -345,6 +379,36 @@ onMounted(async () => {
 .registration-details strong {
   color: #0f172a;
   word-break: break-word;
+}
+
+.timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.timeline span {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.timeline span.done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.cancel-registration-button {
+  margin-top: 16px;
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 900;
 }
 
 /* STATES */

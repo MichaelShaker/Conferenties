@@ -102,6 +102,29 @@
           </div>
 
           <div class="form-grid">
+            <div class="form-group">
+              <label>Shirtmaat</label>
+              <select v-model="form.shirtSize">
+                <option value="">Kies je maat</option>
+                <option v-for="size in shirtSizes" :key="size" :value="size">
+                  {{ size }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Vervoer naar conferenties</label>
+              <select v-model="form.transportOption">
+                <option value="">Kies vervoer</option>
+                <option value="own_transport">
+                  Ik heb eigen vervoer naar de conferentie
+                </option>
+                <option value="bus">
+                  Ik maak graag gebruik van de bus tegen aanvullende kosten
+                </option>
+              </select>
+            </div>
+
             <div class="form-group full">
               <label>Allergieën</label>
               <textarea v-model="form.allergies" rows="3" placeholder="Bijv. noten, lactose, geen"></textarea>
@@ -111,13 +134,18 @@
               <label>Dieetwensen</label>
               <textarea v-model="form.dietaryNotes" rows="3" placeholder="Bijv. vegetarisch, geen"></textarea>
             </div>
+
+            <label class="newsletter-toggle full">
+              <input v-model="form.newsletterEnabled" type="checkbox" />
+              <span>Ik wil emails ontvangen over events die bij mijn profiel passen.</span>
+            </label>
           </div>
         </div>
 
         <div class="submit-panel">
           <div>
             <strong>Bijna klaar</strong>
-            <p>Je kunt deze gegevens later altijd aanpassen.</p>
+            <p>Je gegevens worden gebruikt voor inschrijvingen, deelnemerslijsten, betalingen en praktische eventvoorbereiding. Je kunt ze later aanpassen.</p>
           </div>
 
           <button class="btn btn-primary submit-btn" type="submit" :disabled="loading">
@@ -142,6 +170,7 @@ const churches = ref([])
 const loading = ref(false)
 const message = ref('')
 const success = ref(false)
+const shirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 const form = reactive({
   firstName: '',
@@ -153,7 +182,10 @@ const form = reactive({
   rankTitle: '',
   confessionFather: '',
   allergies: '',
-  dietaryNotes: ''
+  dietaryNotes: '',
+  shirtSize: '',
+  transportOption: '',
+  newsletterEnabled: true
 })
 
 onMounted(async () => {
@@ -173,6 +205,9 @@ onMounted(async () => {
       form.confessionFather = profile.confession_father || ''
       form.allergies = profile.allergies || ''
       form.dietaryNotes = profile.dietary_notes || ''
+      form.shirtSize = profile.shirt_size || ''
+      form.transportOption = profile.transport_option || ''
+      form.newsletterEnabled = profile.newsletterEnabled !== 0
     }
   } catch (error) {
     success.value = false
@@ -363,6 +398,23 @@ textarea:focus {
 
 textarea {
   resize: vertical;
+}
+
+.newsletter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.newsletter-toggle input {
+  width: auto;
+  min-height: auto;
 }
 
 .submit-panel {
