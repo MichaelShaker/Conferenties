@@ -42,6 +42,12 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3097}
     ports:
       - "8097:8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
   frontend:
     build:
@@ -51,3 +57,9 @@ services:
       - backend
     ports:
       - "3097:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
