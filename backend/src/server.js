@@ -1,7 +1,6 @@
 require("dotenv").config();
 const app = require("./app");
 const pool = require("./config/db");
-const googleSheetsService = require("./services/googleSheetsService");
 const { ensureAppSchema } = require("./services/schemaService");
 
 const PORT = process.env.PORT || 3002;
@@ -17,13 +16,14 @@ async function startServer() {
         connection.release();
 
         await ensureAppSchema();
-        await googleSheetsService.getStatus();
 
         app.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`);
         });
     } catch (error) {
         console.error("Failed to start server:", error.message);
+        console.error(error.stack);
+        process.exit(1);
     }
 }
 
