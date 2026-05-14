@@ -39,7 +39,7 @@ jobs:
       - name: Wait for backend health
         run: |
           for i in {1..40}; do
-            if curl -fsS http://127.0.0.1:8096/api/health; then
+            if curl -fsS http://127.0.0.1:8097/api/health; then
               exit 0
             fi
             sleep 3
@@ -52,7 +52,7 @@ jobs:
       - name: Wait for frontend
         run: |
           for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:3096 > /tmp/response.html; then
+            if curl -fsS http://127.0.0.1:3097 > /tmp/response.html; then
               exit 0
             fi
             sleep 2

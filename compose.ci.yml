@@ -24,7 +24,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     env_file:
-      - ./backend/.env
+      - path: ./backend/.env
+        required: false
     depends_on:
       mysql:
         condition: service_healthy
@@ -36,6 +37,9 @@ services:
       DB_PASSWORD: conferenties_pass
       DB_NAME: conferenties
       NODE_ENV: test
+      JWT_SECRET: ${JWT_SECRET:-ci_jwt_secret_for_build_checks_only_123456789}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-ci_encryption_key_for_build_checks_only_123456789}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3097}
     ports:
       - "8097:8080"
 
