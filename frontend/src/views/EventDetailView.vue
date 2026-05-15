@@ -61,7 +61,7 @@
 
         <h2>Over dit event</h2>
 
-        <p class="event-description">
+        <p class="event-description formatted-text">
           {{ event.description }}
         </p>
 
@@ -194,7 +194,7 @@
             <p>{{ event.paymentContactPhone || '-' }}</p>
           </div>
 
-          <p v-if="event.paymentInstructions">
+          <p v-if="event.paymentInstructions" class="formatted-text">
             {{ event.paymentInstructions }}
           </p>
 
@@ -603,6 +603,11 @@ async function handlePaymentProofChange(eventInput) {
   color: #475569;
   font-size: 1.12rem;
   line-height: 1.9;
+}
+
+.formatted-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .event-details-grid {

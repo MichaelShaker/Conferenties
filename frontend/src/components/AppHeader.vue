@@ -184,8 +184,13 @@ onUnmounted(() => {
   .navbar-inner {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
-    padding: 12px 0;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 0;
+  }
+
+  .logo {
+    font-size: 1.28rem;
   }
 
   .nav-links {
@@ -205,8 +210,9 @@ onUnmounted(() => {
   .nav-links a,
   .logout-btn {
     flex: 0 0 auto;
-    min-height: 40px;
-    padding: 8px 12px;
+    min-height: 36px;
+    padding: 7px 11px;
+    font-size: 0.9rem;
     white-space: nowrap;
   }
 }

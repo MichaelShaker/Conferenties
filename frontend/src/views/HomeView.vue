@@ -115,7 +115,7 @@ onMounted(async () => {
 /* HERO */
 .hero-full {
   position: relative;
-  min-height: 100vh;
+  min-height: calc(100vh - 86px);
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -306,9 +306,40 @@ onMounted(async () => {
 
 /* RESPONSIVE */
 @media (max-width: 900px) {
+  .hero-full {
+    min-height: calc(100svh - 132px);
+    align-items: flex-start;
+  }
+
   .hero-content {
     grid-template-columns: 1fr;
-    padding: 90px 0 64px;
+    padding: 44px 0 64px;
+    gap: 34px;
+  }
+
+  .hero-text h1 {
+    font-size: clamp(2.8rem, 12vw, 4.6rem);
+    line-height: 0.95;
+    letter-spacing: -0.05em;
+  }
+
+  .hero-description {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .hero-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .hero-info-card {
+    border-radius: 8px;
+    padding: 24px;
   }
 
   .featured-events {

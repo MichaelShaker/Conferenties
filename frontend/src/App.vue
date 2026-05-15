@@ -1,5 +1,5 @@
 <template>
-  <div class="app-shell">
+  <div :class="['app-shell', { 'app-shell--with-header': !isKhelwaPage }]">
     <AppHeader v-if="!isKhelwaPage" />
     <RouterView />
   </div>
@@ -16,3 +16,21 @@ const isKhelwaPage = computed(() => {
   return route.path.startsWith("/khelwa")
 })
 </script>
+
+<style scoped>
+.app-shell--with-header {
+  padding-top: 86px;
+}
+
+@media (max-width: 800px) {
+  .app-shell--with-header {
+    padding-top: 132px;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-shell--with-header {
+    padding-top: 124px;
+  }
+}
+</style>
