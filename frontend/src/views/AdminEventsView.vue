@@ -429,24 +429,36 @@
             <td>€{{ Number(event.price).toFixed(2) }}</td>
             <td>{{ event.registeredCount || 0 }} / {{ event.capacity }}</td>
             <td>
-              <button class="delete-button" @click="removeEvent(event.id)">
-                Archiveren
-              </button>
-              <button class="edit-button" @click="startEdit(event)">
-                Bewerken
-              </button>
-              <button class="mail-button" @click="resendEventMail(event)">
-                Mail opnieuw
-              </button>
-              <button class="edit-button" @click="sendTestMail(event)">
-                Test mail
-              </button>
-              <button class="edit-button" @click="syncEventSheet(event)">
-                Sheet sync
-              </button>
-              <a v-if="event.googleSheetUrl" class="sheet-link" :href="event.googleSheetUrl" target="_blank">
-                Open Sheet
-              </a>
+              <div class="table-actions">
+                <button class="action-btn action-btn--danger" @click="removeEvent(event.id)">
+                  Archiveren
+                </button>
+
+                <button class="action-btn action-btn--primary" @click="startEdit(event)">
+                  Bewerken
+                </button>
+
+                <button class="action-btn action-btn--mail" @click="resendEventMail(event)">
+                  Mail opnieuw
+                </button>
+
+                <button class="action-btn action-btn--neutral" @click="sendTestMail(event)">
+                  Test mail
+                </button>
+
+                <button class="action-btn action-btn--neutral" @click="syncEventSheet(event)">
+                  Sheet sync
+                </button>
+
+                <a
+                    v-if="event.googleSheetUrl"
+                    class="action-btn action-btn--sheet"
+                    :href="event.googleSheetUrl"
+                    target="_blank"
+                >
+                  Open Sheet
+                </a>
+              </div>
             </td>
           </tr>
           </tbody>
@@ -1079,6 +1091,84 @@ async function removeEvent(id) {
 
 .form-panel {
   padding: 24px;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 360px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.action-btn--primary {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.action-btn--primary:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.action-btn--danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.action-btn--danger:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.action-btn--mail {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.action-btn--mail:hover {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
+.action-btn--neutral {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.action-btn--neutral:hover {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.action-btn--sheet {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.action-btn--sheet:hover {
+  background: #16a34a;
+  color: #ffffff;
 }
 
 .panel-heading {

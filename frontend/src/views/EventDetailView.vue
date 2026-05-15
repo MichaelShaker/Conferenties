@@ -269,8 +269,12 @@ const shirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 const isAdmin = computed(() => authState.user?.role === 'admin')
 
 const formattedDate = computed(() => {
-  if (!event.value?.date) return '-'
-  return formatDateRange(event.value.date, event.value.dateEnd)
+  const startDate = event.value?.date || event.value?.conference_date || event.value?.eventDate
+  const endDate = event.value?.dateEnd || event.value?.event_end_date || event.value?.eventDateEnd
+
+  if (!startDate) return '-'
+
+  return formatDateRange(startDate, endDate)
 })
 
 function formatDateRange(startValue, endValue) {
@@ -284,13 +288,14 @@ function formatDateRange(startValue, endValue) {
 }
 
 function formatDate(value) {
+  if (!value) return '-'
+
   return new Date(value).toLocaleDateString('nl-NL', {
     day: '2-digit',
     month: 'long',
     year: 'numeric'
   })
 }
-
 const ageText = computed(() => {
   const min = event.value?.minAge
   const max = event.value?.maxAge

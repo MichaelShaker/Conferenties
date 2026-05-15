@@ -58,13 +58,19 @@ const props = defineProps({
 })
 
 const eventDate = computed(() => {
-  if (!props.event.date) return null
-  return new Date(props.event.date)
+  const value = props.event.date || props.event.conference_date || props.event.eventDate
+
+  if (!value) return null
+
+  return new Date(value)
 })
 
 const eventEndDate = computed(() => {
-  if (!props.event.dateEnd) return null
-  return new Date(props.event.dateEnd)
+  const value = props.event.dateEnd || props.event.event_end_date || props.event.eventDateEnd
+
+  if (!value) return null
+
+  return new Date(value)
 })
 
 const dayRange = computed(() => {
