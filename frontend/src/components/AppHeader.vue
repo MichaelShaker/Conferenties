@@ -184,12 +184,30 @@ onUnmounted(() => {
   .navbar-inner {
     flex-direction: column;
     align-items: flex-start;
-    padding: 14px 0;
+    gap: 10px;
+    padding: 12px 0;
   }
 
   .nav-links {
-    flex-wrap: wrap;
+    width: 100%;
+    flex-wrap: nowrap;
     gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-links a,
+  .logout-btn {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 8px 12px;
+    white-space: nowrap;
   }
 }
 </style>

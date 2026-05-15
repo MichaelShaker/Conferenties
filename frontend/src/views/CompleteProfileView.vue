@@ -125,17 +125,14 @@
               </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group transport-field">
               <label>Vervoer naar conferenties</label>
               <select v-model="form.transportOption">
                 <option value="">Kies vervoer</option>
-                <option value="own_transport">
-                  Ik heb eigen vervoer naar de conferentie
-                </option>
-                <option value="bus">
-                  Ik maak graag gebruik van de bus tegen aanvullende kosten
-                </option>
+                <option value="own_transport">Eigen vervoer</option>
+                <option value="bus">Bus (+ kosten)</option>
               </select>
+              <small>Je kunt dit per inschrijving nog aanpassen als dat nodig is.</small>
             </div>
 
             <div class="form-group full">
@@ -519,6 +516,8 @@ input,
 select,
 textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: #f8fafc;
@@ -527,6 +526,11 @@ textarea {
   font: inherit;
   outline: none;
   transition: 0.2s ease;
+}
+
+select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 input:focus,
@@ -556,6 +560,14 @@ textarea {
 .newsletter-toggle input {
   width: auto;
   min-height: auto;
+}
+
+.transport-field small {
+  display: block;
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .submit-panel {
@@ -596,7 +608,8 @@ textarea {
   .profile-hero {
     align-items: flex-start;
     flex-direction: column;
-    padding: 34px 24px;
+    gap: 22px;
+    padding: 30px 20px;
   }
 
   .form-grid {
@@ -608,7 +621,8 @@ textarea {
   }
 
   .profile-card {
-    padding: 24px;
+    padding: 20px;
+    border-radius: 8px;
   }
 
   .submit-panel {
@@ -619,27 +633,64 @@ textarea {
   .submit-btn {
     width: 100%;
   }
+
+  .step-actions {
+    width: 100%;
+  }
 }
 
 @media (max-width: 560px) {
   .profile-view {
-    padding: 20px 0 56px;
+    gap: 18px;
+    padding: 16px 0 48px;
   }
 
   .profile-hero {
-    border-radius: 28px;
+    border-radius: 8px;
   }
 
   .profile-hero h1 {
-    font-size: 3rem;
+    font-size: 2.25rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
   }
 
   .hero-card {
     width: 100%;
+    border-radius: 8px;
+    padding: 18px;
   }
 
   .section-title {
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .section-title h2 {
+    font-size: 1.25rem;
+  }
+
+  .wizard-section {
+    min-height: auto;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 48px;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .newsletter-toggle {
+    align-items: flex-start;
+  }
+
+  .submit-panel {
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: 8px;
   }
 }
 </style>

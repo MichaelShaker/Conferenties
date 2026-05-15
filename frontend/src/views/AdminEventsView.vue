@@ -1100,6 +1100,8 @@ input,
 select,
 textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 46px;
   padding: 12px 13px;
   border: 1px solid #cbd5e1;
@@ -1108,6 +1110,11 @@ textarea {
   color: #0f172a;
   font: inherit;
   outline: none;
+}
+
+select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 textarea {
@@ -1452,10 +1459,46 @@ td strong {
 }
 
 @media (max-width: 760px) {
+  .admin-events {
+    padding-bottom: 48px;
+  }
+
+  .event-builder,
+  .events-overview {
+    width: min(100% - 24px, 1240px);
+  }
+
   .page-hero,
   .submit-panel {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .page-hero {
+    min-height: auto;
+    gap: 20px;
+    padding: 82px 18px 34px;
+  }
+
+  .page-hero h1 {
+    font-size: 2.35rem;
+    line-height: 1;
+  }
+
+  .page-hero p {
+    font-size: 1rem;
+  }
+
+  .hero-count {
+    width: 100%;
+    min-height: 86px;
+    grid-auto-flow: column;
+    justify-content: space-between;
+    padding: 18px;
+  }
+
+  .hero-count strong {
+    font-size: 2.1rem;
   }
 
   .field-grid,
@@ -1468,26 +1511,62 @@ td strong {
     grid-template-columns: 1fr;
   }
 
+  .builder-steps button {
+    min-height: 58px;
+  }
+
   .submit-button,
   .ghost-button,
   .cancel-edit-button,
   .builder-actions {
     width: 100%;
   }
+
+  input,
+  select,
+  textarea {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .image-focus {
+    height: 190px;
+  }
+
+  .preview-image {
+    height: 160px;
+  }
 }
 
 @media (max-width: 560px) {
   .page-hero {
-    padding: 70px 24px 46px;
+    padding: 78px 14px 30px;
   }
 
   .page-hero h1 {
-    font-size: 3rem;
+    font-size: 2.15rem;
   }
 
   .form-panel,
   .events-overview {
-    padding: 18px;
+    padding: 14px;
+  }
+
+  .panel-heading {
+    gap: 10px;
+  }
+
+  .panel-heading h2,
+  .overview-heading h2 {
+    font-size: 1.28rem;
+  }
+
+  .checkbox-group label {
+    align-items: flex-start;
+  }
+
+  .review-grid div {
+    min-height: auto;
   }
 }
 </style>
