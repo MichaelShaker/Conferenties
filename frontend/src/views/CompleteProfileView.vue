@@ -10,8 +10,8 @@
       </div>
 
       <div class="hero-card">
-        <strong>Stap 1</strong>
-        <span>Profielgegevens</span>
+        <strong>{{ activeStep + 1 }}/{{ profileSteps.length }}</strong>
+        <span>{{ currentStep.title }}</span>
       </div>
     </section>
 
@@ -19,7 +19,20 @@
 
     <section class="profile-card">
       <form @submit.prevent="handleSubmit">
-        <div class="form-section">
+        <nav class="step-tabs" aria-label="Profiel stappen">
+          <button
+              v-for="(step, index) in profileSteps"
+              :key="step.title"
+              type="button"
+              :class="{ active: activeStep === index, done: index < activeStep }"
+              @click="goToStep(index)"
+          >
+            <span>{{ index + 1 }}</span>
+            <strong>{{ step.title }}</strong>
+          </button>
+        </nav>
+
+        <div v-if="activeStep === 0" class="form-section wizard-section">
           <div class="section-title">
             <span>01</span>
             <div>
@@ -51,7 +64,7 @@
           </div>
         </div>
 
-        <div class="form-section">
+        <div v-if="activeStep === 1" class="form-section wizard-section">
           <div class="section-title">
             <span>02</span>
             <div>
@@ -92,7 +105,7 @@
           </div>
         </div>
 
-        <div class="form-section">
+        <div v-if="activeStep === 2" class="form-section wizard-section">
           <div class="section-title">
             <span>03</span>
             <div>
@@ -144,13 +157,38 @@
 
         <div class="submit-panel">
           <div>
-            <strong>Bijna klaar</strong>
-            <p>Je gegevens worden gebruikt voor inschrijvingen, deelnemerslijsten, betalingen en praktische eventvoorbereiding. Je kunt ze later aanpassen.</p>
+            <strong>{{ currentStep.title }}</strong>
+            <p>{{ currentStep.summary }}</p>
           </div>
 
-          <button class="btn btn-primary submit-btn" type="submit" :disabled="loading">
-            {{ loading ? 'Opslaan...' : 'Profiel opslaan' }}
-          </button>
+          <div class="step-actions">
+            <button
+                v-if="activeStep > 0"
+                class="btn btn-secondary submit-btn"
+                type="button"
+                @click="activeStep -= 1"
+            >
+              Terug
+            </button>
+
+            <button
+                v-if="activeStep < profileSteps.length - 1"
+                class="btn btn-primary submit-btn"
+                type="button"
+                @click="nextStep"
+            >
+              Volgende
+            </button>
+
+            <button
+                v-else
+                class="btn btn-primary submit-btn"
+                type="submit"
+                :disabled="loading"
+            >
+              {{ loading ? 'Opslaan...' : 'Profiel opslaan' }}
+            </button>
+          </div>
         </div>
       </form>
     </section>
@@ -158,7 +196,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import StatusMessage from '../components/StatusMessage.vue'
 import { fetchChurches, fetchMyProfile, updateMyProfile } from '../services/api'
@@ -170,7 +208,28 @@ const churches = ref([])
 const loading = ref(false)
 const message = ref('')
 const success = ref(false)
+const activeStep = ref(0)
 const shirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+
+const profileSteps = [
+  {
+    title: 'Basis',
+    summary: 'Vul je naam, telefoonnummer en geboortedatum in.',
+    requiredFields: ['firstName', 'lastName', 'phone', 'birthDate']
+  },
+  {
+    title: 'Kerk',
+    summary: 'Koppel je profiel aan je kerk en woonplaats.',
+    requiredFields: ['churchId']
+  },
+  {
+    title: 'Voorkeuren',
+    summary: 'Deze gegevens helpen bij praktische voorbereidingen voor events.',
+    requiredFields: []
+  }
+]
+
+const currentStep = computed(() => profileSteps[activeStep.value])
 
 const form = reactive({
   firstName: '',
@@ -215,7 +274,41 @@ onMounted(async () => {
   }
 })
 
+function validateStep(stepIndex = activeStep.value) {
+  const step = profileSteps[stepIndex]
+  const missing = step.requiredFields.filter(field => !form[field])
+
+  if (!missing.length) {
+    message.value = ''
+    return true
+  }
+
+  success.value = false
+  message.value = 'Vul eerst de verplichte velden in deze stap in.'
+  return false
+}
+
+function nextStep() {
+  if (!validateStep()) return
+  activeStep.value = Math.min(profileSteps.length - 1, activeStep.value + 1)
+}
+
+function goToStep(index) {
+  if (index <= activeStep.value) {
+    activeStep.value = index
+    return
+  }
+
+  for (let stepIndex = activeStep.value; stepIndex < index; stepIndex += 1) {
+    if (!validateStep(stepIndex)) return
+  }
+
+  activeStep.value = index
+}
+
 async function handleSubmit() {
+  if (!validateStep()) return
+
   loading.value = true
   message.value = ''
 
@@ -319,6 +412,54 @@ async function handleSubmit() {
   background: white;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
+}
+
+.step-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.step-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--text-muted);
+  text-align: left;
+  font-weight: 900;
+}
+
+.step-tabs button span {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.step-tabs button.active {
+  border-color: rgba(37, 99, 235, 0.36);
+  background: #eff6ff;
+  color: var(--text);
+}
+
+.step-tabs button.active span,
+.step-tabs button.done span {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.wizard-section {
+  min-height: 360px;
 }
 
 .form-section {
@@ -444,6 +585,13 @@ textarea {
   min-width: 180px;
 }
 
+.step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 @media (max-width: 850px) {
   .profile-hero {
     align-items: flex-start;
@@ -452,6 +600,10 @@ textarea {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .step-tabs {
     grid-template-columns: 1fr;
   }
 

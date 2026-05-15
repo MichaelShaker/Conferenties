@@ -17,7 +17,21 @@
 
     <section class="event-builder">
       <form class="event-form" @submit.prevent="handleSubmitEvent">
-        <section class="form-panel">
+        <nav class="builder-steps" aria-label="Event stappen">
+          <button
+              v-for="(step, index) in eventSteps"
+              :key="step.title"
+              type="button"
+              :class="{ active: activeEventStep === index, done: index < activeEventStep }"
+              @click="goToEventStep(index)"
+          >
+            <span>{{ index + 1 }}</span>
+            <strong>{{ step.title }}</strong>
+            <small>{{ step.caption }}</small>
+          </button>
+        </nav>
+
+        <section v-if="activeEventStep === 0" class="form-panel">
           <div class="panel-heading">
             <span>1</span>
             <div>
@@ -69,7 +83,7 @@
           </div>
         </section>
 
-        <section class="form-panel">
+        <section v-if="activeEventStep === 1" class="form-panel">
           <div class="panel-heading">
             <span>2</span>
             <div>
@@ -122,7 +136,7 @@
           </div>
         </section>
 
-        <section class="form-panel">
+        <section v-if="activeEventStep === 2" class="form-panel">
           <div class="panel-heading">
             <span>3</span>
             <div>
@@ -210,7 +224,7 @@
           </div>
         </section>
 
-        <section class="form-panel">
+        <section v-if="activeEventStep === 3" class="form-panel">
           <div class="panel-heading">
             <span>4</span>
             <div>
@@ -253,15 +267,76 @@
           </label>
         </section>
 
-        <div class="submit-panel">
-          <div>
-            <strong>Klaar?</strong>
-            <span>Het event verschijnt direct op de website.</span>
+        <section v-if="activeEventStep === 4" class="form-panel review-panel">
+          <div class="panel-heading">
+            <span>5</span>
+            <div>
+              <h2>Controleer en publiceer</h2>
+              <p>Loop de belangrijkste keuzes nog één keer na voordat het live gaat.</p>
+            </div>
           </div>
 
-          <button class="submit-button" type="submit" :disabled="loading">
-            {{ loading ? 'Even bezig...' : (editingEventId ? 'Event opslaan' : 'Event toevoegen') }}
-          </button>
+          <div class="review-grid">
+            <div>
+              <span>Event</span>
+              <strong>{{ form.title || '-' }}</strong>
+              <small>{{ form.category || 'Geen categorie' }}</small>
+            </div>
+
+            <div>
+              <span>Datum en locatie</span>
+              <strong>{{ form.date || '-' }}</strong>
+              <small>{{ form.location || 'Geen locatie' }}</small>
+            </div>
+
+            <div>
+              <span>Prijs</span>
+              <strong>€{{ Number(form.price || 0).toFixed(2) }}</strong>
+              <small>{{ form.capacity || 0 }} plekken</small>
+            </div>
+
+            <div>
+              <span>Doelgroep</span>
+              <strong>{{ form.eventType === 'local' ? 'Lokaal' : 'Nationaal' }}</strong>
+              <small>{{ form.targetCity || form.targetRank || form.targetChurchId ? 'Met filters' : 'Iedereen welkom' }}</small>
+            </div>
+          </div>
+        </section>
+
+        <div class="submit-panel">
+          <div>
+            <strong>{{ currentEventStep.title }}</strong>
+            <span>{{ currentEventStep.help }}</span>
+          </div>
+
+          <div class="builder-actions">
+            <button
+                v-if="activeEventStep > 0"
+                class="ghost-button"
+                type="button"
+                @click="activeEventStep -= 1"
+            >
+              Terug
+            </button>
+
+            <button
+                v-if="activeEventStep < eventSteps.length - 1"
+                class="submit-button"
+                type="button"
+                @click="nextEventStep"
+            >
+              Volgende
+            </button>
+
+            <button
+                v-else
+                class="submit-button"
+                type="submit"
+                :disabled="loading"
+            >
+              {{ loading ? 'Even bezig...' : (editingEventId ? 'Event opslaan' : 'Event toevoegen') }}
+            </button>
+          </div>
 
           <button v-if="editingEventId" class="cancel-edit-button" type="button" @click="cancelEdit">
             Annuleren
@@ -287,12 +362,12 @@
             <h2>{{ form.title || 'Eventnaam' }}</h2>
             <dl>
               <div>
-                <dt>Datum</dt>
-                <dd>{{ form.date || '-' }}</dd>
+                <dt>Stap</dt>
+                <dd>{{ activeEventStep + 1 }}/{{ eventSteps.length }}</dd>
               </div>
               <div>
-                <dt>Locatie</dt>
-                <dd>{{ form.location || '-' }}</dd>
+                <dt>Datum</dt>
+                <dd>{{ form.date || '-' }}</dd>
               </div>
               <div>
                 <dt>Prijs</dt>
@@ -377,7 +452,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import StatusMessage from '../components/StatusMessage.vue'
 import {
   fetchConferences,
@@ -398,6 +473,42 @@ const churches = ref([])
 const imagePreview = ref('')
 const qrPreview = ref('')
 const editingEventId = ref(null)
+const activeEventStep = ref(0)
+
+const eventSteps = [
+  {
+    title: 'Basis',
+    caption: 'Naam en datum',
+    help: 'Leg eerst de kern vast: wat, waar, wanneer en hoeveel plekken.',
+    requiredFields: ['title', 'category', 'date', 'location', 'price', 'capacity']
+  },
+  {
+    title: 'Presentatie',
+    caption: 'Tekst en beeld',
+    help: 'Maak de eventpagina en uitnodigingsmail duidelijk en aantrekkelijk.',
+    requiredFields: ['description']
+  },
+  {
+    title: 'Doelgroep',
+    caption: 'Regels',
+    help: 'Bepaal wie zich kan aanmelden en welke extra profielgegevens nodig zijn.',
+    requiredFields: []
+  },
+  {
+    title: 'Betaling',
+    caption: 'Instructies',
+    help: 'Voeg betaalinformatie toe als deelnemers moeten betalen.',
+    requiredFields: []
+  },
+  {
+    title: 'Controle',
+    caption: 'Publiceren',
+    help: 'Controleer de samenvatting en publiceer het event.',
+    requiredFields: []
+  }
+]
+
+const currentEventStep = computed(() => eventSteps[activeEventStep.value])
 
 const form = reactive({
   title: '',
@@ -569,6 +680,7 @@ function resetForm() {
   form.emailSubject = ''
   form.emailBody = ''
   editingEventId.value = null
+  activeEventStep.value = 0
 
   imagePreview.value = ''
   qrPreview.value = ''
@@ -615,6 +727,7 @@ function startEdit(event) {
 
   imagePreview.value = form.image
   qrPreview.value = form.paymentQrUrl
+  activeEventStep.value = 0
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -622,7 +735,49 @@ function cancelEdit() {
   resetForm()
 }
 
+function validateEventStep(stepIndex = activeEventStep.value) {
+  const step = eventSteps[stepIndex]
+  const missing = step.requiredFields.filter(field => {
+    const value = form[field]
+    return value === '' || value === null || value === undefined
+  })
+
+  if (!missing.length) {
+    message.value = ''
+    return true
+  }
+
+  success.value = false
+  message.value = 'Vul eerst de verplichte velden in deze stap in.'
+  return false
+}
+
+function nextEventStep() {
+  if (!validateEventStep()) return
+  activeEventStep.value = Math.min(eventSteps.length - 1, activeEventStep.value + 1)
+}
+
+function goToEventStep(index) {
+  if (index <= activeEventStep.value) {
+    activeEventStep.value = index
+    return
+  }
+
+  for (let stepIndex = activeEventStep.value; stepIndex < index; stepIndex += 1) {
+    if (!validateEventStep(stepIndex)) return
+  }
+
+  activeEventStep.value = index
+}
+
 async function handleSubmitEvent() {
+  for (let stepIndex = 0; stepIndex < eventSteps.length; stepIndex += 1) {
+    if (!validateEventStep(stepIndex)) {
+      activeEventStep.value = stepIndex
+      return
+    }
+  }
+
   loading.value = true
   message.value = ''
 
@@ -814,6 +969,66 @@ async function removeEvent(id) {
   gap: 18px;
 }
 
+.builder-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.builder-steps button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: center;
+  min-height: 74px;
+  padding: 11px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #64748b;
+  text-align: left;
+}
+
+.builder-steps span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  grid-row: span 2;
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 900;
+}
+
+.builder-steps strong,
+.builder-steps small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.builder-steps strong {
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.builder-steps small {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.builder-steps button.active {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: #eff6ff;
+}
+
+.builder-steps button.active span,
+.builder-steps button.done span {
+  background: #2563eb;
+  color: #ffffff;
+}
+
 .form-panel,
 .submit-panel,
 .preview-box,
@@ -990,6 +1205,50 @@ textarea:focus {
   border-radius: 8px;
 }
 
+.review-panel {
+  min-height: 360px;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.review-grid div {
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.review-grid span,
+.review-grid strong,
+.review-grid small {
+  display: block;
+}
+
+.review-grid span {
+  margin-bottom: 10px;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.review-grid strong {
+  margin-bottom: 6px;
+  color: #0f172a;
+  font-size: 1.15rem;
+}
+
+.review-grid small {
+  color: #64748b;
+  font-weight: 800;
+}
+
 .submit-panel {
   display: flex;
   align-items: center;
@@ -1012,6 +1271,13 @@ textarea:focus {
   color: #64748b;
 }
 
+.builder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .submit-button {
   min-width: 180px;
   padding: 13px 18px;
@@ -1026,6 +1292,21 @@ textarea:focus {
 .submit-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.ghost-button,
+.cancel-edit-button {
+  min-width: 120px;
+  padding: 13px 18px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.ghost-button:hover,
+.cancel-edit-button:hover {
+  background: #e2e8f0;
 }
 
 .side-panel {
@@ -1161,6 +1442,10 @@ td strong {
     grid-template-columns: 1fr;
   }
 
+  .builder-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .side-panel {
     position: static;
   }
@@ -1174,11 +1459,19 @@ td strong {
   }
 
   .field-grid,
-  .checkbox-group {
+  .checkbox-group,
+  .review-grid {
     grid-template-columns: 1fr;
   }
 
-  .submit-button {
+  .builder-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .submit-button,
+  .ghost-button,
+  .cancel-edit-button,
+  .builder-actions {
     width: 100%;
   }
 }
