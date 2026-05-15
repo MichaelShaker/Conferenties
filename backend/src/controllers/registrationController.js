@@ -174,6 +174,32 @@ function buildRegistrationStatusEmail(registration) {
     return { subject: content.subject, html };
 }
 
+function buildCustomRegistrationEmail(registration, body) {
+    return `
+        <div style="margin: 0; padding: 34px 16px; background: #eef2f7; font-family: Arial, sans-serif; color: #0f172a;">
+            <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #dbe3ee; border-radius: 18px; overflow: hidden;">
+                <div style="padding: 30px 34px; background: #1d4ed8; color: #ffffff;">
+                    <p style="margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">Bericht van de organisatie</p>
+                    <h1 style="margin: 0; font-size: 27px; line-height: 1.25;">Aanvullende informatie nodig</h1>
+                    <p style="margin: 12px 0 0; font-size: 16px; line-height: 1.55; color: #dbeafe;">${escapeHtml(registration.eventTitle || "Het event")}</p>
+                </div>
+                <div style="padding: 34px;">
+                    <p style="margin: 0; font-size: 16px; line-height: 1.6;">Beste ${escapeHtml(registration.userName || "gebruiker")},</p>
+                    <div style="margin-top: 18px; font-size: 16px; line-height: 1.7; color: #334155;">
+                        ${escapeHtml(body).replace(/\n/g, "<br>")}
+                    </div>
+                    <div style="margin-top: 28px; padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
+                        <p style="margin: 0; font-size: 13px; font-weight: 700; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase;">Over deze inschrijving</p>
+                        <p style="margin: 8px 0 0; font-size: 18px; font-weight: 700;">${escapeHtml(registration.eventTitle || "Het event")}</p>
+                        ${registration.eventLocation ? `<p style="margin: 6px 0 0; font-size: 15px; color: #475569;">${escapeHtml(registration.eventLocation)}</p>` : ""}
+                    </div>
+                    <p style="margin: 26px 0 0; padding-top: 22px; border-top: 1px solid #e2e8f0; font-size: 14px; line-height: 1.6; color: #64748b;">Met vriendelijke groet,<br />De organisatie</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 async function sendRegistrationStatusEmail({ registration, actorUserId, emailType }) {
     const { subject, html } = buildRegistrationStatusEmail(registration);
 
@@ -186,6 +212,43 @@ async function sendRegistrationStatusEmail({ registration, actorUserId, emailTyp
         recipientEmail: registration.userEmail,
         subject,
         status: "sent"
+    });
+}
+
+async function sendCustomRegistrationEmailInBackground({ registration, actorUserId, subject, body }) {
+    setImmediate(async () => {
+        try {
+            const html = buildCustomRegistrationEmail(registration, body);
+            await sendMail(registration.userEmail, subject, html);
+            await logEmail({
+                actorUserId,
+                conferenceId: registration.eventId,
+                registrationId: registration.id,
+                emailType: "registration_custom",
+                recipientEmail: registration.userEmail,
+                subject,
+                status: "sent"
+            });
+            await logAudit({
+                actorUserId,
+                action: "registration.custom_email_sent",
+                entityType: "registration",
+                entityId: Number(registration.id),
+                details: { subject }
+            });
+        } catch (error) {
+            console.error("Error sending custom registration email:", error.message);
+            await logEmail({
+                actorUserId,
+                conferenceId: registration.eventId,
+                registrationId: registration.id,
+                emailType: "registration_custom",
+                recipientEmail: registration.userEmail,
+                subject,
+                status: "failed",
+                errorMessage: error.message
+            });
+        }
     });
 }
 
@@ -547,6 +610,61 @@ async function resendRegistrationEmail(req, res) {
     }
 }
 
+async function sendCustomRegistrationEmail(req, res) {
+    try {
+        const { id } = req.params;
+        const { subject, body } = req.body;
+
+        if (!subject || !body) {
+            return res.status(400).json({
+                success: false,
+                message: "Subject and message are required"
+            });
+        }
+
+        if (String(subject).length > 160 || String(body).length > 5000) {
+            return res.status(400).json({
+                success: false,
+                message: "Subject or message is too long"
+            });
+        }
+
+        const registration = await registrationService.getRegistrationById(id);
+
+        if (!registration) {
+            return res.status(404).json({
+                success: false,
+                message: "Registration not found"
+            });
+        }
+
+        if (!registration.userEmail) {
+            return res.status(400).json({
+                success: false,
+                message: "This user has no email address"
+            });
+        }
+
+        sendCustomRegistrationEmailInBackground({
+            registration,
+            actorUserId: req.user?.id,
+            subject: String(subject).trim(),
+            body: String(body).trim()
+        });
+
+        res.json({
+            success: true,
+            message: "Custom registration email queued"
+        });
+    } catch (error) {
+        console.error("Error queueing custom registration email:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not send registration email"
+        });
+    }
+}
+
 module.exports = {
     registerForConference,
     getMyRegistrations,
@@ -555,5 +673,6 @@ module.exports = {
     updateRegistration,
     uploadPaymentProof,
     cancelRegistration,
-    resendRegistrationEmail
+    resendRegistrationEmail,
+    sendCustomRegistrationEmail
 };

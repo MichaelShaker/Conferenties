@@ -133,6 +133,16 @@ export async function resendRegistrationEmail(id) {
     return handleResponse(response);
 }
 
+export async function sendCustomRegistrationEmail(id, payload) {
+    const response = await fetch(`${API_BASE_URL}/registrations/${id}/custom-email`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+    });
+
+    return handleResponse(response);
+}
+
 export async function cancelRegistration(id) {
     const response = await fetch(`${API_BASE_URL}/registrations/${id}/cancel`, {
         method: "PUT",

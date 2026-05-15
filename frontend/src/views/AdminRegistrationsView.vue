@@ -96,20 +96,8 @@
           <div>
             <p class="eyebrow">Per event</p>
             <h2>Deelnemerslijst voor locatie</h2>
-            <p>Bekijk of download de actuele lijst met goedgekeurde deelnemers per event.</p>
+            <p>Bekijk of download alleen de goedgekeurde deelnemers per event.</p>
           </div>
-          <label class="export-filter">
-            <span>CSV filter</span>
-            <select v-model="exportFilter">
-              <option value="all">Alles</option>
-              <option value="approved">Op locatie</option>
-              <option value="pending_payment">Wacht op betaling</option>
-              <option value="proof_uploaded">Bewijs geüpload</option>
-              <option value="bus">Buslijst</option>
-              <option value="shirts">Shirtmaten</option>
-              <option value="cancelled">Geannuleerd</option>
-            </select>
-          </label>
         </div>
 
         <div v-if="eventSummaries.length > 0" class="event-export-grid">
@@ -129,10 +117,6 @@
                 <dt>Goedgekeurd</dt>
                 <dd>{{ event.approvedCount }}</dd>
               </div>
-              <div>
-                <dt>Totaal</dt>
-                <dd>{{ event.totalCount }}</dd>
-              </div>
             </dl>
             <p class="sync-meta">
               Laatste sync:
@@ -149,7 +133,7 @@
                   type="button"
                   class="csv-button"
                   @click="exportCsvForEvent(event)"
-                  :disabled="event.totalCount === 0"
+                  :disabled="event.approvedCount === 0"
               >
                 Download CSV
               </button>
@@ -179,7 +163,7 @@
           <div class="preview-heading">
             <div>
               <h3>{{ selectedEventSummary.title }}</h3>
-              <p>{{ selectedEventRegistrations.length }} registraties in deze export.</p>
+              <p>{{ selectedEventRegistrations.length }} goedgekeurde registraties in deze export.</p>
             </div>
 
             <button
@@ -188,7 +172,7 @@
                 @click="exportCsvForEvent(selectedEventSummary)"
                 :disabled="selectedEventRegistrations.length === 0"
             >
-              Download actuele lijst
+                Download actuele lijst
             </button>
           </div>
 
@@ -234,9 +218,22 @@
         <div class="panel-heading">
           <div>
             <p class="eyebrow">Overzicht</p>
-            <h2>Alle registraties</h2>
-            <p>Controleer per gebruiker de status en betaalinformatie.</p>
+            <h2>{{ activeTabLabel }}</h2>
+            <p>Werk vanuit de wachtrij en houd goedgekeurde deelnemers apart.</p>
           </div>
+        </div>
+
+        <div class="registration-tabs" role="tablist" aria-label="Registratie filters">
+          <button
+              v-for="tab in registrationTabs"
+              :key="tab.id"
+              type="button"
+              :class="['tab-button', { active: activeRegistrationTab === tab.id }]"
+              @click="activeRegistrationTab = tab.id"
+          >
+            <span>{{ tab.label }}</span>
+            <strong>{{ tab.count }}</strong>
+          </button>
         </div>
 
         <div class="table-wrapper">
@@ -256,7 +253,7 @@
             </thead>
 
             <tbody>
-            <tr v-for="registration in registrations" :key="registration.id">
+            <tr v-for="registration in filteredRegistrations" :key="registration.id">
               <td>
                 <div class="user-cell">
                   <strong>{{ registration.userName }}</strong>
@@ -339,6 +336,14 @@
 
                   <button
                       class="secondary-button"
+                      @click="openCustomEmailModal(registration)"
+                      :disabled="!registration.userEmail"
+                  >
+                    Mail sturen
+                  </button>
+
+                  <button
+                      class="secondary-button"
                       @click="resendMail(registration)"
                       :disabled="!canResendRegistrationMail(registration)"
                   >
@@ -350,13 +355,50 @@
             </tbody>
           </table>
 
-          <div v-if="registrations.length === 0" class="empty-state">
+          <div v-if="filteredRegistrations.length === 0" class="empty-state">
             <h2>Geen registraties</h2>
-            <p>Er zijn nog geen registraties binnengekomen.</p>
+            <p>Er zijn geen registraties in deze tab.</p>
           </div>
         </div>
       </section>
     </section>
+
+    <div v-if="emailModalRegistration" class="modal-backdrop" @click.self="closeCustomEmailModal">
+      <section class="email-modal" role="dialog" aria-modal="true" aria-labelledby="custom-email-title">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">Persoonlijke mail</p>
+            <h2 id="custom-email-title">{{ emailModalRegistration.userName }}</h2>
+            <p>{{ emailModalRegistration.userEmail }} - {{ emailModalRegistration.eventTitle }}</p>
+          </div>
+          <button type="button" class="icon-button" @click="closeCustomEmailModal" aria-label="Sluiten">x</button>
+        </div>
+
+        <label class="modal-field">
+          <span>Onderwerp</span>
+          <input v-model="customEmail.subject" type="text" maxlength="160" />
+        </label>
+
+        <label class="modal-field">
+          <span>Bericht</span>
+          <textarea v-model="customEmail.body" rows="8" placeholder="Schrijf hier wat je nog nodig hebt..." />
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-button" @click="closeCustomEmailModal">
+            Annuleren
+          </button>
+          <button
+              type="button"
+              class="approve-button"
+              @click="sendCustomEmail"
+              :disabled="emailSending || !customEmail.subject.trim() || !customEmail.body.trim()"
+          >
+            {{ emailSending ? 'Versturen...' : 'Mail versturen' }}
+          </button>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -372,7 +414,8 @@ import {
   fetchGoogleSheetsAuthUrl,
   syncGoogleSheetForEvent,
   syncAllGoogleSheets,
-  resendRegistrationEmail
+  resendRegistrationEmail,
+  sendCustomRegistrationEmail
 } from '../services/api'
 import { authState } from '../stores/auth'
 
@@ -380,11 +423,17 @@ const message = ref('')
 const success = ref(false)
 const registrations = ref([])
 const selectedEventId = ref('')
-const exportFilter = ref('all')
+const activeRegistrationTab = ref('pending')
 const googleLoading = ref(false)
 const googleStatus = ref({
   connected: false,
   email: null
+})
+const emailModalRegistration = ref(null)
+const emailSending = ref(false)
+const customEmail = ref({
+  subject: '',
+  body: ''
 })
 
 const isAdmin = computed(() => authState.user?.role === 'admin')
@@ -399,6 +448,57 @@ const proofUploadedCount = computed(() => {
 
 const confirmedCount = computed(() => {
   return registrations.value.filter(isApprovedRegistration).length
+})
+
+const rejectedCount = computed(() => {
+  return registrations.value.filter(isRejectedRegistration).length
+})
+
+const pendingReviewCount = computed(() => {
+  return registrations.value.filter(isPendingRegistration).length
+})
+
+const registrationTabs = computed(() => [
+  {
+    id: 'pending',
+    label: 'Openstaand',
+    count: pendingReviewCount.value
+  },
+  {
+    id: 'approved',
+    label: 'Goedgekeurd',
+    count: confirmedCount.value
+  },
+  {
+    id: 'rejected',
+    label: 'Afgekeurd',
+    count: rejectedCount.value
+  },
+  {
+    id: 'all',
+    label: 'Alles',
+    count: registrations.value.length
+  }
+])
+
+const activeTabLabel = computed(() => {
+  return registrationTabs.value.find(tab => tab.id === activeRegistrationTab.value)?.label || 'Registraties'
+})
+
+const filteredRegistrations = computed(() => {
+  if (activeRegistrationTab.value === 'approved') {
+    return registrations.value.filter(isApprovedRegistration)
+  }
+
+  if (activeRegistrationTab.value === 'rejected') {
+    return registrations.value.filter(isRejectedRegistration)
+  }
+
+  if (activeRegistrationTab.value === 'pending') {
+    return registrations.value.filter(isPendingRegistration)
+  }
+
+  return registrations.value
 })
 
 const eventSummaries = computed(() => {
@@ -443,6 +543,7 @@ const selectedEventRegistrations = computed(() => {
 
   return registrations.value
       .filter(registration => registration.eventId === selectedEventId.value)
+      .filter(isApprovedRegistration)
       .sort((a, b) => (a.userName || '').localeCompare(b.userName || '', 'nl'))
 })
 
@@ -585,6 +686,15 @@ function isApprovedRegistration(registration) {
       && ['confirmed', 'approved', 'goedgekeurd'].includes(registration.registrationStatus)
 }
 
+function isRejectedRegistration(registration) {
+  return registration.paymentStatus === 'rejected'
+      || ['rejected', 'denied', 'afgewezen'].includes(registration.registrationStatus)
+}
+
+function isPendingRegistration(registration) {
+  return !isApprovedRegistration(registration) && !isRejectedRegistration(registration)
+}
+
 function canResendRegistrationMail(registration) {
   return !!registration.userEmail
 }
@@ -710,12 +820,50 @@ async function resendMail(registration) {
   }
 }
 
-async function exportCsvForEvent(registration) {
+function openCustomEmailModal(registration) {
+  emailModalRegistration.value = registration
+  customEmail.value = {
+    subject: `Vraag over je inschrijving voor ${registration.eventTitle}`,
+    body: `Beste ${registration.userName || 'gebruiker'},\n\nWe hebben nog aanvullende informatie nodig om je inschrijving goed te kunnen verwerken.\n\nMet vriendelijke groet,\nDe organisatie`
+  }
+}
+
+function closeCustomEmailModal() {
+  emailModalRegistration.value = null
+  customEmail.value = {
+    subject: '',
+    body: ''
+  }
+}
+
+async function sendCustomEmail() {
+  if (!emailModalRegistration.value) return
+
+  emailSending.value = true
+
   try {
-    await exportApprovedUsersCsv(registration.eventId, registration.eventTitle, exportFilter.value)
+    await sendCustomRegistrationEmail(emailModalRegistration.value.id, {
+      subject: customEmail.value.subject.trim(),
+      body: customEmail.value.body.trim()
+    })
 
     success.value = true
-    message.value = 'Actuele deelnemerslijst is gedownload.'
+    message.value = `Mail naar ${emailModalRegistration.value.userName} wordt verstuurd.`
+    closeCustomEmailModal()
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  } finally {
+    emailSending.value = false
+  }
+}
+
+async function exportCsvForEvent(registration) {
+  try {
+    await exportApprovedUsersCsv(registration.eventId, registration.eventTitle, 'approved')
+
+    success.value = true
+    message.value = 'Goedgekeurde deelnemerslijst is gedownload.'
   } catch (error) {
     success.value = false
     message.value = error.message
@@ -988,6 +1136,49 @@ async function exportCsvForEvent(registration) {
   color: #64748b;
 }
 
+.registration-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.tab-button {
+  min-width: 138px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 900;
+}
+
+.tab-button strong {
+  min-width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 0.82rem;
+}
+
+.tab-button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.tab-button.active strong {
+  background: #2563eb;
+  color: #ffffff;
+}
+
 .event-export-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1248,6 +1439,96 @@ td strong {
 .muted-text {
   color: #94a3b8;
   font-weight: 800;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.email-modal {
+  width: min(640px, 100%);
+  padding: 26px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.modal-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.modal-heading h2 {
+  margin-bottom: 6px;
+  color: #0f172a;
+  font-size: 1.8rem;
+  letter-spacing: -0.04em;
+}
+
+.modal-heading p {
+  color: #64748b;
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.icon-button:hover {
+  background: #e2e8f0;
+}
+
+.modal-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.modal-field span {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.modal-field input,
+.modal-field textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #0f172a;
+  font: inherit;
+  resize: vertical;
+}
+
+.modal-field input:focus,
+.modal-field textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 /* EMPTY / ACCESS */
