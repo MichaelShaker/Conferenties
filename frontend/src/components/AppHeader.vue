@@ -147,6 +147,11 @@ onUnmounted(() => {
   color: white;
 }
 
+.navbar-scrolled .nav-links a:hover {
+  background: #eef2ff;
+  color: #1d4ed8;
+}
+
 /* 🔥 ACTIVE (clean + modern) */
 .nav-links a.router-link-active {
   background: rgba(255, 255, 255, 0.18);
