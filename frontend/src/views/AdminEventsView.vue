@@ -1093,21 +1093,24 @@ async function removeEvent(id) {
   padding: 24px;
 }
 
-.table-actions {
-  display: flex;
-  flex-wrap: wrap;
+td .table-actions {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
   gap: 8px;
-  min-width: 360px;
+  align-items: center;
+  min-width: 300px;
 }
 
-.action-btn {
+td .table-actions .action-btn {
+  width: auto;
+  min-width: 105px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
-  padding: 9px 12px;
+  padding: 9px 13px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 12px;
   font-size: 0.78rem;
   font-weight: 900;
   line-height: 1;
@@ -1117,58 +1120,33 @@ async function removeEvent(id) {
   transition: 0.18s ease;
 }
 
-.action-btn:hover {
+td .table-actions .action-btn:hover {
   transform: translateY(-1px);
 }
 
-.action-btn--primary {
+td .table-actions .action-btn--primary {
   background: #dbeafe;
   color: #1d4ed8;
 }
 
-.action-btn--primary:hover {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-.action-btn--danger {
+td .table-actions .action-btn--danger {
   background: #fee2e2;
   color: #dc2626;
 }
 
-.action-btn--danger:hover {
-  background: #dc2626;
-  color: #ffffff;
-}
-
-.action-btn--mail {
+td .table-actions .action-btn--mail {
   background: #ede9fe;
   color: #6d28d9;
 }
 
-.action-btn--mail:hover {
-  background: #7c3aed;
-  color: #ffffff;
-}
-
-.action-btn--neutral {
+td .table-actions .action-btn--neutral {
   background: #f1f5f9;
   color: #334155;
 }
 
-.action-btn--neutral:hover {
-  background: #0f172a;
-  color: #ffffff;
-}
-
-.action-btn--sheet {
+td .table-actions .action-btn--sheet {
   background: #dcfce7;
   color: #15803d;
-}
-
-.action-btn--sheet:hover {
-  background: #16a34a;
-  color: #ffffff;
 }
 
 .panel-heading {
