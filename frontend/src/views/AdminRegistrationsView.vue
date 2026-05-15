@@ -590,7 +590,7 @@ function isApprovedRegistration(registration) {
 }
 
 function canResendRegistrationMail(registration) {
-  return ['confirmed', 'approved', 'goedgekeurd', 'rejected'].includes(registration.registrationStatus)
+  return !!registration.userEmail
 }
 
 function selectEvent(eventId) {
@@ -707,7 +707,7 @@ async function resendMail(registration) {
     await resendRegistrationEmail(registration.id)
 
     success.value = true
-    message.value = 'Statusmail opnieuw verstuurd.'
+    message.value = 'Statusmail wordt verstuurd.'
   } catch (error) {
     success.value = false
     message.value = error.message

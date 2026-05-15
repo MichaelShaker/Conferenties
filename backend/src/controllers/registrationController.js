@@ -26,32 +26,114 @@ function didStatusChange(updatedRegistration) {
         || updatedRegistration.paymentStatus !== updatedRegistration.previousPaymentStatus;
 }
 
-function buildRegistrationStatusEmail(registration, accepted) {
-    const subject = accepted ? "Inschrijving goedgekeurd" : "Inschrijving afgewezen";
+function getRegistrationEmailContent(registration) {
+    const accepted = isAcceptedStatus(registration.registrationStatus);
+    const rejected = isRejectedStatus(registration.registrationStatus);
+
+    if (accepted) {
+        return {
+            subject: "Inschrijving goedgekeurd",
+            label: "Goedgekeurd",
+            labelColor: "#166534",
+            labelBackground: "#dcfce7",
+            title: "Je inschrijving is goedgekeurd",
+            intro: `Je inschrijving voor ${escapeHtml(registration.eventTitle || "het event")} is goedgekeurd.`,
+            detail: "We zien je graag daar."
+        };
+    }
+
+    if (rejected) {
+        return {
+            subject: "Inschrijving afgewezen",
+            label: "Afgewezen",
+            labelColor: "#991b1b",
+            labelBackground: "#fee2e2",
+            title: "Je inschrijving is afgewezen",
+            intro: `Helaas is je inschrijving voor ${escapeHtml(registration.eventTitle || "het event")} afgewezen.`,
+            detail: "Neem contact op met de organisatie als je hierover vragen hebt."
+        };
+    }
+
+    return {
+        subject: "Update over je inschrijving",
+        label: "In behandeling",
+        labelColor: "#92400e",
+        labelBackground: "#fef3c7",
+        title: "Je inschrijving is in behandeling",
+        intro: `Je inschrijving voor ${escapeHtml(registration.eventTitle || "het event")} is ontvangen.`,
+        detail: "We controleren je inschrijving en betaling. Je ontvangt een bericht zodra je inschrijving is goedgekeurd of afgewezen."
+    };
+}
+
+function buildRegistrationStatusEmail(registration) {
+    const content = getRegistrationEmailContent(registration);
+    const eventDate = registration.eventDate
+        ? new Intl.DateTimeFormat("nl-NL", { dateStyle: "long" }).format(new Date(registration.eventDate))
+        : null;
+
     const html = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
-            <h2>${accepted ? "Je inschrijving is goedgekeurd" : "Je inschrijving is afgewezen"}</h2>
-            <p>Beste ${escapeHtml(registration.userName || "gebruiker")},</p>
-            <p>${accepted ? "Je inschrijving voor" : "Helaas is je inschrijving voor"} <strong>${escapeHtml(registration.eventTitle || "het event")}</strong> ${accepted ? "is goedgekeurd." : "afgewezen."}</p>
+        <div style="margin: 0; padding: 32px 16px; background: #f8fafc; font-family: Arial, sans-serif; color: #0f172a;">
+            <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden;">
+                <div style="padding: 28px 32px; background: #2563eb; color: #ffffff;">
+                    <p style="margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">Conferenties</p>
+                    <h1 style="margin: 0; font-size: 26px; line-height: 1.25;">${content.title}</h1>
+                </div>
+                <div style="padding: 32px;">
+                    <span style="display: inline-block; padding: 8px 12px; border-radius: 999px; background: ${content.labelBackground}; color: ${content.labelColor}; font-size: 13px; font-weight: 700;">${content.label}</span>
+                    <p style="margin: 24px 0 0; font-size: 16px; line-height: 1.6;">Beste ${escapeHtml(registration.userName || "gebruiker")},</p>
+                    <p style="margin: 14px 0 0; font-size: 16px; line-height: 1.6;">${content.intro}</p>
+                    <p style="margin: 14px 0 0; font-size: 16px; line-height: 1.6;">${content.detail}</p>
+                    <div style="margin-top: 28px; padding: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
+                        <p style="margin: 0; font-size: 13px; font-weight: 700; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase;">Event</p>
+                        <p style="margin: 8px 0 0; font-size: 18px; font-weight: 700;">${escapeHtml(registration.eventTitle || "Het event")}</p>
+                        ${eventDate ? `<p style="margin: 8px 0 0; font-size: 15px; color: #475569;">${escapeHtml(eventDate)}</p>` : ""}
+                        ${registration.eventLocation ? `<p style="margin: 6px 0 0; font-size: 15px; color: #475569;">${escapeHtml(registration.eventLocation)}</p>` : ""}
+                    </div>
+                    <p style="margin: 28px 0 0; font-size: 14px; line-height: 1.6; color: #64748b;">Met vriendelijke groet,<br />De organisatie</p>
+                </div>
+            </div>
         </div>
     `;
 
-    return { subject, html };
+    return { subject: content.subject, html };
 }
 
-async function sendRegistrationResendEmail({ registration, accepted, actorUserId }) {
-    const { subject, html } = buildRegistrationStatusEmail(registration, accepted);
+async function sendRegistrationStatusEmail({ registration, actorUserId, emailType }) {
+    const { subject, html } = buildRegistrationStatusEmail(registration);
+
+    await sendMail(registration.userEmail, subject, html);
+    await logEmail({
+        actorUserId,
+        conferenceId: registration.eventId,
+        registrationId: registration.id,
+        emailType,
+        recipientEmail: registration.userEmail,
+        subject,
+        status: "sent"
+    });
+}
+
+async function logRegistrationStatusEmailFailure({ registration, actorUserId, emailType, subject, error }) {
+    await logEmail({
+        actorUserId,
+        conferenceId: registration.eventId,
+        registrationId: registration.id,
+        emailType,
+        recipientEmail: registration.userEmail,
+        subject,
+        status: "failed",
+        errorMessage: error.message
+    });
+}
+
+async function sendRegistrationResendEmail({ registration, actorUserId }) {
+    const { subject } = buildRegistrationStatusEmail(registration);
 
     try {
-        await sendMail(registration.userEmail, subject, html);
-        await logEmail({
+        await sendRegistrationStatusEmail({
+            registration,
             actorUserId,
-            conferenceId: registration.eventId,
-            registrationId: registration.id,
-            emailType: "registration_resend",
-            recipientEmail: registration.userEmail,
-            subject,
-            status: "sent"
+            emailType: "registration_resend"
         });
         await logAudit({
             actorUserId,
@@ -62,15 +144,12 @@ async function sendRegistrationResendEmail({ registration, accepted, actorUserId
         });
     } catch (error) {
         console.error("Error resending registration email:", error.message);
-        await logEmail({
+        await logRegistrationStatusEmailFailure({
+            registration,
             actorUserId,
-            conferenceId: registration.eventId,
-            registrationId: registration.id,
             emailType: "registration_resend",
-            recipientEmail: registration.userEmail,
             subject,
-            status: "failed",
-            errorMessage: error.message
+            error
         });
         await logAudit({
             actorUserId,
@@ -266,69 +345,31 @@ async function updateRegistration(req, res) {
 
         try {
             const userEmail = updatedRegistration.userEmail;
-            const userName = updatedRegistration.userName || "gebruiker";
-            const eventTitle = updatedRegistration.eventTitle || "het event";
 
-            if (userEmail && didStatusChange(updatedRegistration) && isAcceptedStatus(registrationStatus)) {
-                const subject = "Inschrijving goedgekeurd";
-                await sendMail(
-                    userEmail,
-                    subject,
-                    `
-                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
-                        <h2>Je inschrijving is goedgekeurd</h2>
-                        <p>Beste ${escapeHtml(userName)},</p>
-                        <p>Je inschrijving voor <strong>${escapeHtml(eventTitle)}</strong> is goedgekeurd.</p>
-                        <p>We zien je graag daar!</p>
-                    </div>
-                    `
-                );
-                await logEmail({
-                    actorUserId: req.user?.id,
-                    conferenceId: updatedRegistration.eventId,
-                    registrationId: updatedRegistration.id,
-                    emailType: "registration_approved",
-                    recipientEmail: userEmail,
-                    subject,
-                    status: "sent"
-                });
-            }
+            if (userEmail && didStatusChange(updatedRegistration)) {
+                let emailType = "registration_pending";
+                if (isAcceptedStatus(registrationStatus)) {
+                    emailType = "registration_approved";
+                } else if (isRejectedStatus(registrationStatus)) {
+                    emailType = "registration_rejected";
+                }
 
-            if (userEmail && didStatusChange(updatedRegistration) && isRejectedStatus(registrationStatus)) {
-                const subject = "Inschrijving afgewezen";
-                await sendMail(
-                    userEmail,
-                    subject,
-                    `
-                    <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
-                        <h2>Je inschrijving is afgewezen</h2>
-                        <p>Beste ${escapeHtml(userName)},</p>
-                        <p>Helaas is je inschrijving voor <strong>${escapeHtml(eventTitle)}</strong> afgewezen.</p>
-                    </div>
-                    `
-                );
-                await logEmail({
+                await sendRegistrationStatusEmail({
+                    registration: updatedRegistration,
                     actorUserId: req.user?.id,
-                    conferenceId: updatedRegistration.eventId,
-                    registrationId: updatedRegistration.id,
-                    emailType: "registration_rejected",
-                    recipientEmail: userEmail,
-                    subject,
-                    status: "sent"
+                    emailType
                 });
             }
 
         } catch (mailError) {
             console.error("Email error:", mailError.message);
-            await logEmail({
+            const { subject } = buildRegistrationStatusEmail(updatedRegistration);
+            await logRegistrationStatusEmailFailure({
+                registration: updatedRegistration,
                 actorUserId: req.user?.id,
-                conferenceId: updatedRegistration.eventId,
-                registrationId: updatedRegistration.id,
                 emailType: "registration_status",
-                recipientEmail: updatedRegistration.userEmail,
-                subject: "Registratiestatus",
-                status: "failed",
-                errorMessage: mailError.message
+                subject,
+                error: mailError
             });
         }
 
@@ -408,20 +449,9 @@ async function resendRegistrationEmail(req, res) {
             });
         }
 
-        const accepted = isAcceptedStatus(registration.registrationStatus);
-        const rejected = isRejectedStatus(registration.registrationStatus);
-
-        if (!accepted && !rejected) {
-            return res.status(400).json({
-                success: false,
-                message: "Only accepted or rejected registration emails can be resent"
-            });
-        }
-
         setImmediate(() => {
             sendRegistrationResendEmail({
                 registration,
-                accepted,
                 actorUserId: req.user?.id
             }).catch(error => {
                 console.error("Unexpected resend email worker error:", error.message);
