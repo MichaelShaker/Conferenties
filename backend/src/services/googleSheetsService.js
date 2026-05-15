@@ -13,7 +13,8 @@ const GOOGLE_SCOPES = [
     "openid",
     "email",
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive.file"
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/gmail.send"
 ];
 
 function getGoogleConfig() {
@@ -68,10 +69,12 @@ async function getConnection() {
 
 async function getStatus() {
     const connection = await getConnection();
+    const scope = connection?.scope || "";
 
     return {
         connected: !!connection,
-        email: connection?.google_email || null
+        email: connection?.google_email || null,
+        canSendMail: scope.includes("https://www.googleapis.com/auth/gmail.send")
     };
 }
 
@@ -685,6 +688,7 @@ module.exports = {
     getStatus,
     createAuthUrl,
     handleOAuthCallback,
+    getAccessToken,
     syncConferenceSheet,
     syncConferenceSheetQuietly,
     syncAllConferenceSheets

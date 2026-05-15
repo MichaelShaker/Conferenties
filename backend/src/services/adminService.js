@@ -149,12 +149,6 @@ async function getSystemStatus() {
         };
     }
 
-    const mailKeys = ["MAIL_HOST", "MAIL_PORT", "MAIL_USER", "MAIL_PASS", "MAIL_FROM"];
-    const missingMailKeys = mailKeys.filter(key => !process.env[key]);
-    checks.mail = missingMailKeys.length === 0
-        ? { ok: true, message: "Configured" }
-        : { ok: false, message: `Missing: ${missingMailKeys.join(", ")}` };
-
     try {
         const googleStatus = await googleSheetsService.getStatus();
         checks.googleSheets = {
@@ -162,11 +156,42 @@ async function getSystemStatus() {
             message: googleStatus.connected ? "Connected" : "Not connected",
             email: googleStatus.email
         };
+
+        const mailProvider = (process.env.MAIL_PROVIDER || "auto").toLowerCase();
+        const mailKeys = ["MAIL_HOST", "MAIL_PORT", "MAIL_USER", "MAIL_PASS", "MAIL_FROM"];
+        const missingMailKeys = mailKeys.filter(key => !process.env[key]);
+        const hasSmtpConfig = missingMailKeys.length === 0;
+
+        if (mailProvider !== "smtp" && googleStatus.connected && googleStatus.canSendMail) {
+            checks.mail = {
+                ok: true,
+                message: `Gmail API connected as ${googleStatus.email || "Google account"}`
+            };
+        } else if ((mailProvider === "smtp" || mailProvider === "auto") && hasSmtpConfig) {
+            checks.mail = {
+                ok: true,
+                message: "SMTP configured"
+            };
+        } else if (mailProvider !== "smtp" && googleStatus.connected && !googleStatus.canSendMail) {
+            checks.mail = {
+                ok: false,
+                message: "Reconnect Google to grant Gmail send access"
+            };
+        } else {
+            checks.mail = {
+                ok: false,
+                message: `Missing: ${missingMailKeys.join(", ")}`
+            };
+        }
     } catch (error) {
         checks.googleSheets = {
             ok: false,
             message: error.message,
             email: null
+        };
+        checks.mail = {
+            ok: false,
+            message: error.message
         };
     }
 

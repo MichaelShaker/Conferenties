@@ -101,6 +101,15 @@ export async function fetchAdminRegistrations() {
     return result.data;
 }
 
+export async function fetchRegistrationPaymentProof(id) {
+    const response = await fetch(`${API_BASE_URL}/registrations/${id}/payment-proof`, {
+        headers: getAuthHeaders()
+    });
+
+    const result = await handleResponse(response);
+    return result.data;
+}
+
 export async function updateRegistrationStatus(id, payload) {
     const response = await fetch(`${API_BASE_URL}/registrations/${id}`, {
         method: "PUT",

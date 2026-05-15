@@ -150,6 +150,38 @@ async function getAllRegistrations(req, res) {
     }
 }
 
+async function getRegistrationPaymentProof(req, res) {
+    try {
+        const { id } = req.params;
+        const proof = await registrationService.getRegistrationPaymentProof(id);
+
+        if (!proof) {
+            return res.status(404).json({
+                success: false,
+                message: "Registration not found"
+            });
+        }
+
+        if (!proof.paymentProof) {
+            return res.status(404).json({
+                success: false,
+                message: "Payment proof not found"
+            });
+        }
+
+        res.json({
+            success: true,
+            data: proof
+        });
+    } catch (error) {
+        console.error("Error fetching payment proof:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not fetch payment proof"
+        });
+    }
+}
+
 async function updateRegistration(req, res) {
     try {
         const { id } = req.params;
@@ -392,6 +424,7 @@ module.exports = {
     registerForConference,
     getMyRegistrations,
     getAllRegistrations,
+    getRegistrationPaymentProof,
     updateRegistration,
     uploadPaymentProof,
     cancelRegistration,

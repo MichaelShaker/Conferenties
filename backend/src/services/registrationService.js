@@ -111,7 +111,7 @@ async function getAllRegistrations() {
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
             r.created_at,
-            r.payment_proof AS paymentProof,
+            r.payment_proof IS NOT NULL AS hasPaymentProof,
             r.payment_proof_uploaded_at AS paymentProofUploadedAt,
             u.id AS userId,
             u.name AS userName,
@@ -139,6 +139,19 @@ async function getAllRegistrations() {
     `);
 
     return rows;
+}
+
+async function getRegistrationPaymentProof(id) {
+    const [rows] = await pool.query(`
+        SELECT
+            id,
+            payment_proof AS paymentProof,
+            payment_proof_uploaded_at AS paymentProofUploadedAt
+        FROM registrations
+        WHERE id = ?
+    `, [id]);
+
+    return rows[0] || null;
 }
 
 async function updateRegistrationStatus(id, paymentStatus, registrationStatus, adminNote) {
@@ -280,5 +293,6 @@ module.exports = {
     updateRegistrationStatus,
     uploadPaymentProof,
     cancelRegistration,
-    getRegistrationById
+    getRegistrationById,
+    getRegistrationPaymentProof
 };

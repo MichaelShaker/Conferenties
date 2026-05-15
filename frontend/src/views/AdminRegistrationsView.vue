@@ -301,9 +301,9 @@
 
               <td>
                 <button
-                    v-if="registration.paymentProof"
+                    v-if="registration.hasPaymentProof"
                     class="proof-button"
-                    @click="openPaymentProof(registration.paymentProof)"
+                    @click="openPaymentProof(registration)"
                 >
                   Bewijs openen
                 </button>
@@ -318,7 +318,7 @@
                   <button
                       class="approve-button"
                       @click="approveRegistration(registration)"
-                      :disabled="!registration.paymentProof"
+                      :disabled="!registration.hasPaymentProof"
                   >
                     Goedkeuren
                   </button>
@@ -365,6 +365,7 @@ import { ref, onMounted, computed } from 'vue'
 import StatusMessage from '../components/StatusMessage.vue'
 import {
   fetchAdminRegistrations,
+  fetchRegistrationPaymentProof,
   updateRegistrationStatus,
   exportApprovedUsersCsv,
   fetchGoogleSheetsStatus,
@@ -596,7 +597,7 @@ function selectEvent(eventId) {
   selectedEventId.value = eventId
 }
 
-function openPaymentProof(paymentProof) {
+async function openPaymentProof(registration) {
   const imageWindow = window.open('', '_blank')
 
   if (!imageWindow) {
@@ -605,36 +606,46 @@ function openPaymentProof(paymentProof) {
     return
   }
 
-  imageWindow.document.write(`
-    <html>
-      <head>
-        <title>Betaalbewijs</title>
-        <style>
-          body {
-            margin: 0;
-            padding: 24px;
-            background: #0f172a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-          }
+  imageWindow.document.write('<p style="font-family: Arial, sans-serif; padding: 24px;">Betaalbewijs laden...</p>')
 
-          img {
-            max-width: 95vw;
-            max-height: 95vh;
-            border-radius: 16px;
-            background: white;
-          }
-        </style>
-      </head>
-      <body>
-        <img src="${paymentProof}" alt="Betaalbewijs" />
-      </body>
-    </html>
-  `)
+  try {
+    const proof = await fetchRegistrationPaymentProof(registration.id)
 
-  imageWindow.document.close()
+    imageWindow.document.open()
+    imageWindow.document.write(`
+      <html>
+        <head>
+          <title>Betaalbewijs</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 24px;
+              background: #0f172a;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+            }
+
+            img {
+              max-width: 95vw;
+              max-height: 95vh;
+              border-radius: 16px;
+              background: white;
+            }
+          </style>
+        </head>
+        <body>
+          <img src="${proof.paymentProof}" alt="Betaalbewijs" />
+        </body>
+      </html>
+    `)
+    imageWindow.document.close()
+  } catch (error) {
+    imageWindow.close()
+    success.value = false
+    message.value = error.message
+  }
 }
 
 async function approveRegistration(registration) {
