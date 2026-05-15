@@ -32,36 +32,57 @@ function getRegistrationEmailContent(registration) {
 
     if (accepted) {
         return {
-            subject: "Inschrijving goedgekeurd",
+            subject: "Update: je inschrijving is goedgekeurd",
             label: "Goedgekeurd",
             labelColor: "#166534",
             labelBackground: "#dcfce7",
-            title: "Je inschrijving is goedgekeurd",
-            intro: `Je inschrijving voor ${escapeHtml(registration.eventTitle || "het event")} is goedgekeurd.`,
-            detail: "We zien je graag daar."
+            eyebrow: "Goed nieuws",
+            title: "Je bent erbij",
+            intro: "Je inschrijving is goedgekeurd. We hebben je plek bevestigd en kijken ernaar uit je te zien.",
+            detail: "Bewaar deze mail als bevestiging van je inschrijving. Als er later nog praktische informatie is, ontvang je die apart.",
+            stepsTitle: "Wat kun je nu doen?",
+            steps: [
+                "Controleer de datum, locatie en eventuele betaalinformatie hieronder.",
+                "Zet het event alvast in je agenda.",
+                "Laat het ons weten als je toch niet kunt komen, zodat we je plek kunnen vrijmaken."
+            ]
         };
     }
 
     if (rejected) {
         return {
-            subject: "Inschrijving afgewezen",
+            subject: "Update: je inschrijving is afgewezen",
             label: "Afgewezen",
             labelColor: "#991b1b",
             labelBackground: "#fee2e2",
+            eyebrow: "Update over je aanvraag",
             title: "Je inschrijving is afgewezen",
-            intro: `Helaas is je inschrijving voor ${escapeHtml(registration.eventTitle || "het event")} afgewezen.`,
-            detail: "Neem contact op met de organisatie als je hierover vragen hebt."
+            intro: "Helaas kunnen we je inschrijving op dit moment niet goedkeuren.",
+            detail: "Dat kan bijvoorbeeld komen door beschikbare plekken, voorwaarden voor het event of de status van je betaling. Neem gerust contact op met de organisatie als je vragen hebt.",
+            stepsTitle: "Wat betekent dit?",
+            steps: [
+                "Je staat op dit moment niet op de deelnemerslijst voor dit event.",
+                "Als er iets niet klopt, kun je contact opnemen met de organisatie.",
+                "Je account blijft gewoon actief voor toekomstige events."
+            ]
         };
     }
 
     return {
-        subject: "Update over je inschrijving",
+        subject: "Update: je inschrijving is in behandeling",
         label: "In behandeling",
         labelColor: "#92400e",
         labelBackground: "#fef3c7",
+        eyebrow: "We hebben je aanvraag ontvangen",
         title: "Je inschrijving is in behandeling",
-        intro: `Je inschrijving voor ${escapeHtml(registration.eventTitle || "het event")} is ontvangen.`,
-        detail: "We controleren je inschrijving en betaling. Je ontvangt een bericht zodra je inschrijving is goedgekeurd of afgewezen."
+        intro: "Je inschrijving is ontvangen en staat klaar om gecontroleerd te worden.",
+        detail: "We controleren je gegevens en betaling. Zodra je inschrijving is goedgekeurd of afgewezen, ontvang je automatisch een nieuwe update.",
+        stepsTitle: "Wat gebeurt er nu?",
+        steps: [
+            "Als betaling nodig is, zorg dan dat je betaling of betaalbewijs compleet is.",
+            "De organisatie controleert je inschrijving zo snel mogelijk.",
+            "Je hoeft je niet opnieuw in te schrijven zolang deze aanvraag zichtbaar is in je account."
+        ]
     };
 }
 
@@ -70,26 +91,73 @@ function buildRegistrationStatusEmail(registration) {
     const eventDate = registration.eventDate
         ? new Intl.DateTimeFormat("nl-NL", { dateStyle: "long" }).format(new Date(registration.eventDate))
         : null;
+    const paymentStatusLabels = {
+        pending: "Wacht op betaling",
+        proof_uploaded: "Betaalbewijs geupload",
+        paid: "Betaald",
+        rejected: "Afgewezen"
+    };
+    const registrationStatusLabels = {
+        pending: "In behandeling",
+        confirmed: "Bevestigd",
+        approved: "Goedgekeurd",
+        goedgekeurd: "Goedgekeurd",
+        rejected: "Afgewezen",
+        denied: "Afgewezen",
+        afgewezen: "Afgewezen"
+    };
+    const paymentStatus = paymentStatusLabels[registration.paymentStatus] || registration.paymentStatus || "Onbekend";
+    const registrationStatus = registrationStatusLabels[registration.registrationStatus] || registration.registrationStatus || "Onbekend";
+    const stepsHtml = content.steps.map(step => `
+        <tr>
+            <td style="padding: 0 0 10px; vertical-align: top; width: 22px; color: #2563eb; font-weight: 700;">-</td>
+            <td style="padding: 0 0 10px; font-size: 15px; line-height: 1.6; color: #334155;">${escapeHtml(step)}</td>
+        </tr>
+    `).join("");
 
     const html = `
-        <div style="margin: 0; padding: 32px 16px; background: #f8fafc; font-family: Arial, sans-serif; color: #0f172a;">
-            <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden;">
-                <div style="padding: 28px 32px; background: #2563eb; color: #ffffff;">
-                    <p style="margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">Conferenties</p>
-                    <h1 style="margin: 0; font-size: 26px; line-height: 1.25;">${content.title}</h1>
+        <div style="margin: 0; padding: 34px 16px; background: #eef2f7; font-family: Arial, sans-serif; color: #0f172a;">
+            <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #dbe3ee; border-radius: 18px; overflow: hidden;">
+                <div style="padding: 30px 34px; background: #1d4ed8; color: #ffffff;">
+                    <p style="margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">${escapeHtml(content.eyebrow)}</p>
+                    <h1 style="margin: 0; font-size: 28px; line-height: 1.25;">${escapeHtml(content.title)}</h1>
+                    <p style="margin: 12px 0 0; font-size: 16px; line-height: 1.55; color: #dbeafe;">${escapeHtml(registration.eventTitle || "Het event")}</p>
                 </div>
-                <div style="padding: 32px;">
+                <div style="padding: 34px;">
                     <span style="display: inline-block; padding: 8px 12px; border-radius: 999px; background: ${content.labelBackground}; color: ${content.labelColor}; font-size: 13px; font-weight: 700;">${content.label}</span>
                     <p style="margin: 24px 0 0; font-size: 16px; line-height: 1.6;">Beste ${escapeHtml(registration.userName || "gebruiker")},</p>
-                    <p style="margin: 14px 0 0; font-size: 16px; line-height: 1.6;">${content.intro}</p>
-                    <p style="margin: 14px 0 0; font-size: 16px; line-height: 1.6;">${content.detail}</p>
-                    <div style="margin-top: 28px; padding: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
+                    <p style="margin: 14px 0 0; font-size: 16px; line-height: 1.65;">${escapeHtml(content.intro)}</p>
+                    <p style="margin: 14px 0 0; font-size: 16px; line-height: 1.65;">${escapeHtml(content.detail)}</p>
+
+                    <div style="margin-top: 28px; padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
                         <p style="margin: 0; font-size: 13px; font-weight: 700; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase;">Event</p>
                         <p style="margin: 8px 0 0; font-size: 18px; font-weight: 700;">${escapeHtml(registration.eventTitle || "Het event")}</p>
                         ${eventDate ? `<p style="margin: 8px 0 0; font-size: 15px; color: #475569;">${escapeHtml(eventDate)}</p>` : ""}
                         ${registration.eventLocation ? `<p style="margin: 6px 0 0; font-size: 15px; color: #475569;">${escapeHtml(registration.eventLocation)}</p>` : ""}
                     </div>
-                    <p style="margin: 28px 0 0; font-size: 14px; line-height: 1.6; color: #64748b;">Met vriendelijke groet,<br />De organisatie</p>
+
+                    <div style="margin-top: 18px; padding: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px;">
+                        <p style="margin: 0 0 12px; font-size: 13px; font-weight: 700; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase;">Status</p>
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; font-size: 14px; color: #64748b;">Inschrijving</td>
+                                <td style="padding: 8px 0; font-size: 14px; color: #0f172a; font-weight: 700; text-align: right;">${escapeHtml(registrationStatus)}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0;">Betaling</td>
+                                <td style="padding: 8px 0; font-size: 14px; color: #0f172a; font-weight: 700; text-align: right; border-top: 1px solid #e2e8f0;">${escapeHtml(paymentStatus)}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div style="margin-top: 24px;">
+                        <h2 style="margin: 0 0 12px; font-size: 18px; line-height: 1.35;">${escapeHtml(content.stepsTitle)}</h2>
+                        <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse: collapse;">
+                            ${stepsHtml}
+                        </table>
+                    </div>
+
+                    <p style="margin: 26px 0 0; padding-top: 22px; border-top: 1px solid #e2e8f0; font-size: 14px; line-height: 1.6; color: #64748b;">Met vriendelijke groet,<br />De organisatie</p>
                 </div>
             </div>
         </div>
