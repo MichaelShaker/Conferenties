@@ -19,18 +19,18 @@ const isKhelwaPage = computed(() => {
 
 <style scoped>
 .app-shell--with-header {
-  padding-top: 86px;
+  padding-top: 56px;
 }
 
 @media (max-width: 800px) {
   .app-shell--with-header {
-    padding-top: 132px;
+    padding-top: 102px;
   }
 }
 
 @media (max-width: 420px) {
   .app-shell--with-header {
-    padding-top: 124px;
+    padding-top: 104px;
   }
 }
 </style>
