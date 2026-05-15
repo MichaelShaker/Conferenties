@@ -386,7 +386,6 @@ const googleStatus = ref({
   connected: false,
   email: null
 })
-const hasTriedAutoBackfill = ref(false)
 
 const isAdmin = computed(() => authState.user?.role === 'admin')
 
@@ -458,11 +457,6 @@ async function loadRegistrations() {
 async function refreshGoogleStatus() {
   try {
     googleStatus.value = await fetchGoogleSheetsStatus()
-
-    if (googleStatus.value.connected && !hasTriedAutoBackfill.value) {
-      hasTriedAutoBackfill.value = true
-      await syncAllSheets({ quiet: true })
-    }
   } catch (error) {
     success.value = false
     message.value = error.message
@@ -477,8 +471,10 @@ onMounted(async () => {
   }
 
   try {
-    await refreshGoogleStatus()
-    await loadRegistrations()
+    await Promise.all([
+      refreshGoogleStatus(),
+      loadRegistrations()
+    ])
   } catch (error) {
     success.value = false
     message.value = error.message

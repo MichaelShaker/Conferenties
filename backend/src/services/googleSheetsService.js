@@ -17,6 +17,8 @@ const GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/gmail.send"
 ];
 
+let ensureGoogleSchemaPromise = null;
+
 function getGoogleConfig() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -34,6 +36,11 @@ function getGoogleConfig() {
 }
 
 async function ensureGoogleSchema() {
+    if (ensureGoogleSchemaPromise) {
+        return ensureGoogleSchemaPromise;
+    }
+
+    ensureGoogleSchemaPromise = (async () => {
     await pool.query(`
         CREATE TABLE IF NOT EXISTS google_oauth_tokens (
             id INT NOT NULL AUTO_INCREMENT,
@@ -52,6 +59,14 @@ async function ensureGoogleSchema() {
     await addColumnIfMissing("conferences", "google_sheet_url", "VARCHAR(500) NULL");
     await addColumnIfMissing("conferences", "google_sheet_last_synced_at", "TIMESTAMP NULL");
     await addColumnIfMissing("conferences", "google_sheet_last_error", "TEXT NULL");
+    })();
+
+    try {
+        await ensureGoogleSchemaPromise;
+    } catch (error) {
+        ensureGoogleSchemaPromise = null;
+        throw error;
+    }
 }
 
 async function getConnection() {

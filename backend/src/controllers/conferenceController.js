@@ -37,6 +37,49 @@ function buildEventEmailHtml(conference, user, body) {
     `;
 }
 
+function syncConferenceSheetInBackground(conferenceId) {
+    setImmediate(() => {
+        googleSheetsService.syncConferenceSheetQuietly(conferenceId).catch(error => {
+            console.error("Unexpected Google Sheets background sync error:", error.message);
+        });
+    });
+}
+
+function sendEventCreatedEmailsInBackground(conference) {
+    setImmediate(async () => {
+        try {
+            const users = await conferenceService.getUsersForConferenceNotification(conference);
+            const subject = conference.emailSubject || `Nieuw evenement: ${conference.title}`;
+            const body = conference.emailBody || "Er is een evenement toegevoegd dat bij jouw profiel past.";
+
+            await Promise.allSettled(users.map(async user => {
+                try {
+                    await sendMail(user.email, subject, buildEventEmailHtml(conference, user, body));
+                    await logEmail({
+                        conferenceId: conference.id,
+                        emailType: "event_created",
+                        recipientEmail: user.email,
+                        subject,
+                        status: "sent"
+                    });
+                } catch (error) {
+                    await logEmail({
+                        conferenceId: conference.id,
+                        emailType: "event_created",
+                        recipientEmail: user.email,
+                        subject,
+                        status: "failed",
+                        errorMessage: error.message
+                    });
+                    throw error;
+                }
+            }));
+        } catch (mailError) {
+            console.error("Event email error:", mailError.message);
+        }
+    });
+}
+
 async function getConferences(req, res) {
     try {
         const conferences = await conferenceService.getAllConferences();
@@ -154,36 +197,7 @@ async function createConference(req, res) {
             emailBody: emailBody || null
         });
 
-        try {
-            const users = await conferenceService.getUsersForConferenceNotification(conference);
-            const subject = conference.emailSubject || `Nieuw evenement: ${conference.title}`;
-            const body = conference.emailBody || "Er is een evenement toegevoegd dat bij jouw profiel past.";
-
-            await Promise.allSettled(users.map(async user => {
-                try {
-                    await sendMail(user.email, subject, buildEventEmailHtml(conference, user, body));
-                    await logEmail({
-                        conferenceId: conference.id,
-                        emailType: "event_created",
-                        recipientEmail: user.email,
-                        subject,
-                        status: "sent"
-                    });
-                } catch (error) {
-                    await logEmail({
-                        conferenceId: conference.id,
-                        emailType: "event_created",
-                        recipientEmail: user.email,
-                        subject,
-                        status: "failed",
-                        errorMessage: error.message
-                    });
-                    throw error;
-                }
-            }));
-        } catch (mailError) {
-            console.error("Event email error:", mailError.message);
-        }
+        sendEventCreatedEmailsInBackground(conference);
 
         await logAudit({
             actorUserId: req.user?.id,
@@ -193,7 +207,7 @@ async function createConference(req, res) {
             details: { title: conference.title }
         });
 
-        await googleSheetsService.syncConferenceSheetQuietly(conference.id);
+        syncConferenceSheetInBackground(conference.id);
 
         res.status(201).json({
             success: true,
@@ -231,7 +245,7 @@ async function updateConference(req, res) {
             details: { title: updatedConference.title }
         });
 
-        await googleSheetsService.syncConferenceSheetQuietly(id);
+        syncConferenceSheetInBackground(id);
 
         res.json({
             success: true,

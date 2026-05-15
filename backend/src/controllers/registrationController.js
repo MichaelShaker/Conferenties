@@ -26,6 +26,14 @@ function didStatusChange(updatedRegistration) {
         || updatedRegistration.paymentStatus !== updatedRegistration.previousPaymentStatus;
 }
 
+function syncConferenceSheetInBackground(conferenceId) {
+    setImmediate(() => {
+        googleSheetsService.syncConferenceSheetQuietly(conferenceId).catch(error => {
+            console.error("Unexpected Google Sheets background sync error:", error.message);
+        });
+    });
+}
+
 function getRegistrationEmailContent(registration) {
     const accepted = isAcceptedStatus(registration.registrationStatus);
     const rejected = isRejectedStatus(registration.registrationStatus);
@@ -253,7 +261,7 @@ async function registerForConference(req, res) {
             });
         }
 
-        await googleSheetsService.syncConferenceSheetQuietly(conferenceId);
+        syncConferenceSheetInBackground(conferenceId);
 
         res.status(201).json({
             success: true,
@@ -302,7 +310,7 @@ async function uploadPaymentProof(req, res) {
             });
         }
 
-        await googleSheetsService.syncConferenceSheetQuietly(updatedRegistration.conferenceId);
+        syncConferenceSheetInBackground(updatedRegistration.conferenceId);
 
         res.json({
             success: true,
@@ -441,7 +449,7 @@ async function updateRegistration(req, res) {
             });
         }
 
-        await googleSheetsService.syncConferenceSheetQuietly(updatedRegistration.eventId);
+        syncConferenceSheetInBackground(updatedRegistration.eventId);
         await logAudit({
             actorUserId: req.user?.id,
             action: "registration.updated",
@@ -476,7 +484,7 @@ async function cancelRegistration(req, res) {
             });
         }
 
-        await googleSheetsService.syncConferenceSheetQuietly(cancelledRegistration.conferenceId);
+        syncConferenceSheetInBackground(cancelledRegistration.conferenceId);
         await logAudit({
             actorUserId: req.user?.id,
             action: "registration.cancelled",
