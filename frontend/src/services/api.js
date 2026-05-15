@@ -16,7 +16,11 @@ async function handleResponse(response) {
     try {
         result = text ? JSON.parse(text) : {};
     } catch (error) {
-        throw new Error(text || "Server returned an invalid response");
+        if (!response.ok) {
+            throw new Error(`Server error ${response.status}. Please try again or check the backend logs.`);
+        }
+
+        throw new Error("Server returned an invalid response");
     }
 
     if (!response.ok) {

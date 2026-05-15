@@ -26,6 +26,62 @@ function didStatusChange(updatedRegistration) {
         || updatedRegistration.paymentStatus !== updatedRegistration.previousPaymentStatus;
 }
 
+function buildRegistrationStatusEmail(registration, accepted) {
+    const subject = accepted ? "Inschrijving goedgekeurd" : "Inschrijving afgewezen";
+    const html = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
+            <h2>${accepted ? "Je inschrijving is goedgekeurd" : "Je inschrijving is afgewezen"}</h2>
+            <p>Beste ${escapeHtml(registration.userName || "gebruiker")},</p>
+            <p>${accepted ? "Je inschrijving voor" : "Helaas is je inschrijving voor"} <strong>${escapeHtml(registration.eventTitle || "het event")}</strong> ${accepted ? "is goedgekeurd." : "afgewezen."}</p>
+        </div>
+    `;
+
+    return { subject, html };
+}
+
+async function sendRegistrationResendEmail({ registration, accepted, actorUserId }) {
+    const { subject, html } = buildRegistrationStatusEmail(registration, accepted);
+
+    try {
+        await sendMail(registration.userEmail, subject, html);
+        await logEmail({
+            actorUserId,
+            conferenceId: registration.eventId,
+            registrationId: registration.id,
+            emailType: "registration_resend",
+            recipientEmail: registration.userEmail,
+            subject,
+            status: "sent"
+        });
+        await logAudit({
+            actorUserId,
+            action: "registration.email_resent",
+            entityType: "registration",
+            entityId: Number(registration.id),
+            details: { registrationStatus: registration.registrationStatus, status: "sent" }
+        });
+    } catch (error) {
+        console.error("Error resending registration email:", error.message);
+        await logEmail({
+            actorUserId,
+            conferenceId: registration.eventId,
+            registrationId: registration.id,
+            emailType: "registration_resend",
+            recipientEmail: registration.userEmail,
+            subject,
+            status: "failed",
+            errorMessage: error.message
+        });
+        await logAudit({
+            actorUserId,
+            action: "registration.email_resend_failed",
+            entityType: "registration",
+            entityId: Number(registration.id),
+            details: { registrationStatus: registration.registrationStatus, error: error.message }
+        });
+    }
+}
+
 async function registerForConference(req, res) {
     try {
         const userId = req.user.id;
@@ -362,54 +418,19 @@ async function resendRegistrationEmail(req, res) {
             });
         }
 
-        const subject = accepted ? "Inschrijving goedgekeurd" : "Inschrijving afgewezen";
-
-        try {
-            await sendMail(
-            registration.userEmail,
-            subject,
-            `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
-                <h2>${accepted ? "Je inschrijving is goedgekeurd" : "Je inschrijving is afgewezen"}</h2>
-                <p>Beste ${escapeHtml(registration.userName || "gebruiker")},</p>
-                <p>${accepted ? "Je inschrijving voor" : "Helaas is je inschrijving voor"} <strong>${escapeHtml(registration.eventTitle || "het event")}</strong> ${accepted ? "is goedgekeurd." : "afgewezen."}</p>
-            </div>
-            `
-            );
-            await logEmail({
-                actorUserId: req.user?.id,
-                conferenceId: registration.eventId,
-                registrationId: registration.id,
-                emailType: "registration_resend",
-                recipientEmail: registration.userEmail,
-                subject,
-                status: "sent"
+        setImmediate(() => {
+            sendRegistrationResendEmail({
+                registration,
+                accepted,
+                actorUserId: req.user?.id
+            }).catch(error => {
+                console.error("Unexpected resend email worker error:", error.message);
             });
-        } catch (error) {
-            await logEmail({
-                actorUserId: req.user?.id,
-                conferenceId: registration.eventId,
-                registrationId: registration.id,
-                emailType: "registration_resend",
-                recipientEmail: registration.userEmail,
-                subject,
-                status: "failed",
-                errorMessage: error.message
-            });
-            throw error;
-        }
-
-        await logAudit({
-            actorUserId: req.user?.id,
-            action: "registration.email_resent",
-            entityType: "registration",
-            entityId: Number(id),
-            details: { registrationStatus: registration.registrationStatus }
         });
 
         res.json({
             success: true,
-            message: "Registration email resent"
+            message: "Registration email resend queued"
         });
     } catch (error) {
         console.error("Error resending registration email:", error.message);
