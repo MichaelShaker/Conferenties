@@ -88,6 +88,7 @@ async function getMyRegistrations(userId) {
             c.category,
             c.location AS eventLocation,
             c.conference_date AS eventDate,
+            c.event_end_date AS eventDateEnd,
             c.price,
             c.registration_deadline AS registrationDeadline,
             c.image_url AS eventImage
@@ -127,6 +128,7 @@ async function getAllRegistrations() {
             c.title AS eventTitle,
             c.location AS eventLocation,
             c.conference_date AS eventDate,
+            c.event_end_date AS eventDateEnd,
             c.google_sheet_url AS googleSheetUrl,
             c.google_sheet_last_synced_at AS googleSheetLastSyncedAt,
             c.google_sheet_last_error AS googleSheetLastError
@@ -198,7 +200,8 @@ async function updateRegistrationStatus(id, paymentStatus, registrationStatus, a
             c.id AS eventId,
             c.title AS eventTitle,
             c.location AS eventLocation,
-            c.conference_date AS eventDate
+            c.conference_date AS eventDate,
+            c.event_end_date AS eventDateEnd
         FROM registrations r
                  INNER JOIN users u ON r.user_id = u.id
                  INNER JOIN conferences c ON r.conference_id = c.id
@@ -251,7 +254,8 @@ async function getRegistrationById(id) {
             c.id AS eventId,
             c.title AS eventTitle,
             c.location AS eventLocation,
-            c.conference_date AS eventDate
+            c.conference_date AS eventDate,
+            c.event_end_date AS eventDateEnd
         FROM registrations r
                  INNER JOIN users u ON r.user_id = u.id
                  INNER JOIN conferences c ON r.conference_id = c.id

@@ -30,6 +30,7 @@ async function ensureAppSchema() {
     await addColumnIfMissing("registrations", "cancelled_at", "TIMESTAMP NULL");
     await addColumnIfMissing("user_profiles", "shirt_size", "VARCHAR(20) NULL");
     await addColumnIfMissing("user_profiles", "transport_option", "VARCHAR(50) NULL");
+    await addColumnIfMissing("conferences", "event_end_date", "DATE NULL");
     await addColumnIfMissing("conferences", "registration_deadline", "DATE NULL");
     await addColumnIfMissing("conferences", "email_subject", "VARCHAR(255) NULL");
     await addColumnIfMissing("conferences", "email_body", "TEXT NULL");

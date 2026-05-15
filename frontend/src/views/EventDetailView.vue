@@ -21,7 +21,7 @@
           <span>{{ formattedDate }}</span>
           <span>{{ event.location }}</span>
           <span>€{{ Number(event.price).toFixed(2) }}</span>
-          <span>{{ event.registeredCount || 0 }} / {{ event.capacity }} plekken</span>
+          <span v-if="isAdmin">{{ event.registeredCount || 0 }} / {{ event.capacity }} plekken</span>
         </div>
       </div>
     </section>
@@ -43,7 +43,7 @@
         <strong>€{{ Number(event.price).toFixed(2) }}</strong>
       </div>
 
-      <div>
+      <div v-if="isAdmin">
         <span>Capaciteit</span>
         <strong>{{ event.registeredCount || 0 }} / {{ event.capacity }} bezet</strong>
       </div>
@@ -266,10 +266,30 @@ const transportOption = ref('')
 
 const shirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
+const isAdmin = computed(() => authState.user?.role === 'admin')
+
 const formattedDate = computed(() => {
   if (!event.value?.date) return '-'
-  return event.value.date.slice(0, 10)
+  return formatDateRange(event.value.date, event.value.dateEnd)
 })
+
+function formatDateRange(startValue, endValue) {
+  if (!startValue) return '-'
+
+  if (!endValue || String(startValue).slice(0, 10) === String(endValue).slice(0, 10)) {
+    return formatDate(startValue)
+  }
+
+  return `${formatDate(startValue)} t/m ${formatDate(endValue)}`
+}
+
+function formatDate(value) {
+  return new Date(value).toLocaleDateString('nl-NL', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+}
 
 const ageText = computed(() => {
   const min = event.value?.minAge

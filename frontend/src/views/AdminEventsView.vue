@@ -52,8 +52,13 @@
             </label>
 
             <label class="field">
-              <span>Datum</span>
+              <span>Startdatum</span>
               <input v-model="form.date" type="date" required />
+            </label>
+
+            <label class="field">
+              <span>Einddatum</span>
+              <input v-model="form.dateEnd" type="date" />
             </label>
 
             <label class="field">
@@ -285,7 +290,7 @@
 
             <div>
               <span>Datum en locatie</span>
-              <strong>{{ form.date || '-' }}</strong>
+              <strong>{{ formatDateRange(form.date, form.dateEnd) }}</strong>
               <small>{{ form.location || 'Geen locatie' }}</small>
             </div>
 
@@ -367,7 +372,7 @@
               </div>
               <div>
                 <dt>Datum</dt>
-                <dd>{{ form.date || '-' }}</dd>
+                <dd>{{ formatDateRange(form.date, form.dateEnd) }}</dd>
               </div>
               <div>
                 <dt>Prijs</dt>
@@ -412,7 +417,7 @@
           <tr v-for="event in events" :key="event.id">
             <td><strong>{{ event.title }}</strong></td>
             <td>{{ event.event_type || event.eventType || 'national' }}</td>
-            <td>{{ formatDate(event.date) }}</td>
+            <td>{{ formatDateRange(event.date, event.dateEnd) }}</td>
             <td>{{ event.location }}</td>
             <td>{{ event.category }}</td>
             <td>
@@ -514,6 +519,7 @@ const form = reactive({
   title: '',
   category: '',
   date: '',
+  dateEnd: '',
   location: '',
   price: 0,
   capacity: 100,
@@ -553,6 +559,17 @@ function formatDate(date) {
     month: 'long',
     year: 'numeric'
   })
+}
+
+function formatDateRange(startValue, endValue) {
+  if (!startValue) return '-'
+  const start = formatDate(startValue)
+
+  if (!endValue || String(startValue).slice(0, 10) === String(endValue).slice(0, 10)) {
+    return start
+  }
+
+  return `${start} t/m ${formatDate(endValue)}`
 }
 
 async function loadEvents() {
@@ -650,6 +667,7 @@ function resetForm() {
   form.title = ''
   form.category = ''
   form.date = ''
+  form.dateEnd = ''
   form.location = ''
   form.price = 0
   form.capacity = 100
@@ -697,6 +715,7 @@ function startEdit(event) {
   form.title = event.title || ''
   form.category = event.category || ''
   form.date = normalizeDateInput(event.date)
+  form.dateEnd = normalizeDateInput(event.dateEnd)
   form.location = event.location || ''
   form.price = Number(event.price || 0)
   form.capacity = Number(event.capacity || 100)
@@ -752,8 +771,21 @@ function validateEventStep(stepIndex = activeEventStep.value) {
   return false
 }
 
+function validateDateRange() {
+  if (!form.date || !form.dateEnd) return true
+
+  if (new Date(form.dateEnd) >= new Date(form.date)) {
+    return true
+  }
+
+  success.value = false
+  message.value = 'De einddatum mag niet voor de startdatum liggen.'
+  return false
+}
+
 function nextEventStep() {
   if (!validateEventStep()) return
+  if (activeEventStep.value === 0 && !validateDateRange()) return
   activeEventStep.value = Math.min(eventSteps.length - 1, activeEventStep.value + 1)
 }
 
@@ -765,6 +797,7 @@ function goToEventStep(index) {
 
   for (let stepIndex = activeEventStep.value; stepIndex < index; stepIndex += 1) {
     if (!validateEventStep(stepIndex)) return
+    if (stepIndex === 0 && !validateDateRange()) return
   }
 
   activeEventStep.value = index
@@ -774,6 +807,11 @@ async function handleSubmitEvent() {
   for (let stepIndex = 0; stepIndex < eventSteps.length; stepIndex += 1) {
     if (!validateEventStep(stepIndex)) {
       activeEventStep.value = stepIndex
+      return
+    }
+
+    if (stepIndex === 0 && !validateDateRange()) {
+      activeEventStep.value = 0
       return
     }
   }

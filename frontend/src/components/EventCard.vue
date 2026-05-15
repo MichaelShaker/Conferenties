@@ -8,7 +8,7 @@
       />
 
       <div class="event-card__date-pill">
-        <span>{{ day }}</span>
+        <span>{{ dayRange }}</span>
         <strong>{{ month }}</strong>
       </div>
 
@@ -35,7 +35,7 @@
       <div class="event-card__info">
         <span>{{ formattedDate }}</span>
         <span>{{ event.location }}</span>
-        <span>{{ event.registeredCount || 0 }} / {{ event.capacity }} plekken bezet</span>
+        <span v-if="isAdmin">{{ event.registeredCount || 0 }} / {{ event.capacity }} plekken bezet</span>
       </div>
 
       <RouterLink :to="`/events/${event.id}`" class="event-card__button">
@@ -48,6 +48,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { authState } from '../stores/auth'
 
 const props = defineProps({
   event: {
@@ -61,16 +62,30 @@ const eventDate = computed(() => {
   return new Date(props.event.date)
 })
 
-const day = computed(() => {
+const eventEndDate = computed(() => {
+  if (!props.event.dateEnd) return null
+  return new Date(props.event.dateEnd)
+})
+
+const dayRange = computed(() => {
   if (!eventDate.value) return ''
-  return eventDate.value.toLocaleDateString('nl-NL', {
-    day: '2-digit'
-  })
+  const startDay = eventDate.value.toLocaleDateString('nl-NL', { day: '2-digit' })
+
+  if (!eventEndDate.value || isSameDate(eventDate.value, eventEndDate.value)) {
+    return startDay
+  }
+
+  const endDay = eventEndDate.value.toLocaleDateString('nl-NL', { day: '2-digit' })
+  return `${startDay}-${endDay}`
 })
 
 const month = computed(() => {
   if (!eventDate.value) return ''
-  return eventDate.value.toLocaleDateString('nl-NL', {
+  const displayDate = eventEndDate.value && !isSameDate(eventDate.value, eventEndDate.value)
+      ? eventEndDate.value
+      : eventDate.value
+
+  return displayDate.toLocaleDateString('nl-NL', {
     month: 'short'
   })
 })
@@ -78,12 +93,30 @@ const month = computed(() => {
 const formattedDate = computed(() => {
   if (!eventDate.value) return ''
 
-  return eventDate.value.toLocaleDateString('nl-NL', {
+  const start = eventDate.value.toLocaleDateString('nl-NL', {
     day: '2-digit',
     month: 'long',
     year: 'numeric'
   })
+
+  if (!eventEndDate.value || isSameDate(eventDate.value, eventEndDate.value)) {
+    return start
+  }
+
+  const end = eventEndDate.value.toLocaleDateString('nl-NL', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+
+  return `${start} t/m ${end}`
 })
+
+const isAdmin = computed(() => authState.user?.role === 'admin')
+
+function isSameDate(first, second) {
+  return first.toISOString().slice(0, 10) === second.toISOString().slice(0, 10)
+}
 
 const shortDescription = computed(() => {
   if (!props.event.description) return ''

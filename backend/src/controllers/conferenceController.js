@@ -22,6 +22,14 @@ function formatDisplayDate(value) {
     });
 }
 
+function formatDisplayDateRange(startValue, endValue) {
+    if (!endValue || String(startValue).slice(0, 10) === String(endValue).slice(0, 10)) {
+        return formatDisplayDate(startValue);
+    }
+
+    return `${formatDisplayDate(startValue)} t/m ${formatDisplayDate(endValue)}`;
+}
+
 function buildEventEmailHtml(conference, user, body) {
     return `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a;">
@@ -30,7 +38,7 @@ function buildEventEmailHtml(conference, user, body) {
             <p>${escapeHtml(body).replace(/\n/g, "<br>")}</p>
             <p><strong>${escapeHtml(conference.title)}</strong></p>
             <p>Locatie: ${escapeHtml(conference.location)}</p>
-            <p>Datum: ${escapeHtml(formatDisplayDate(conference.date))}</p>
+            <p>Datum: ${escapeHtml(formatDisplayDateRange(conference.date, conference.dateEnd))}</p>
             <p>Log in om de details te bekijken en je in te schrijven.</p>
             ${user.id && user.email ? createUnsubscribeFooter(user) : ""}
         </div>
@@ -129,6 +137,7 @@ async function createConference(req, res) {
             category,
             location,
             date,
+            dateEnd,
             description,
             image,
             price,
@@ -164,11 +173,19 @@ async function createConference(req, res) {
             });
         }
 
+        if (dateEnd && new Date(dateEnd) < new Date(date)) {
+            return res.status(400).json({
+                success: false,
+                message: "End date cannot be before start date"
+            });
+        }
+
         const conference = await conferenceService.createConference({
             title,
             category,
             location,
             date,
+            dateEnd: dateEnd || null,
             description: description || "",
             image: image || "",
             price: Number(price || 0),
@@ -226,12 +243,20 @@ async function createConference(req, res) {
 async function updateConference(req, res) {
     try {
         const { id } = req.params;
+        const { date, dateEnd } = req.body;
         const existingConference = await conferenceService.getConferenceById(id);
 
         if (!existingConference) {
             return res.status(404).json({
                 success: false,
                 message: "Conference not found"
+            });
+        }
+
+        if (date && dateEnd && new Date(dateEnd) < new Date(date)) {
+            return res.status(400).json({
+                success: false,
+                message: "End date cannot be before start date"
             });
         }
 

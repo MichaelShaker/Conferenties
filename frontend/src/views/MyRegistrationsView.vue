@@ -59,7 +59,7 @@
           <div class="registration-details">
             <div>
               <span>Datum</span>
-              <strong>{{ formatDate(registration.eventDate) }}</strong>
+              <strong>{{ formatDateRange(registration.eventDate, registration.eventDateEnd) }}</strong>
             </div>
 
             <div>
@@ -135,6 +135,17 @@ function formatDate(date) {
     month: 'long',
     year: 'numeric'
   })
+}
+
+function formatDateRange(startValue, endValue) {
+  if (!startValue) return '-'
+  const start = formatDate(startValue)
+
+  if (!endValue || String(startValue).slice(0, 10) === String(endValue).slice(0, 10)) {
+    return start
+  }
+
+  return `${start} t/m ${formatDate(endValue)}`
 }
 
 onMounted(async () => {

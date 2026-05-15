@@ -4,6 +4,7 @@ async function getAllConferences() {
     const [rows] = await pool.query(`
         SELECT
             c.id, c.title, c.category, c.location, c.conference_date AS date,
+            c.event_end_date AS dateEnd,
             c.description, c.image_url AS image, c.price, c.capacity, c.created_at,
             c.event_type AS eventType, c.city, c.church_id AS churchId,
             c.min_age AS minAge, c.max_age AS maxAge,
@@ -45,6 +46,7 @@ async function getConferenceById(id) {
     const [rows] = await pool.query(`
         SELECT
             c.id, c.title, c.category, c.location, c.conference_date AS date,
+            c.event_end_date AS dateEnd,
             c.description, c.image_url AS image, c.price, c.capacity, c.created_at,
             c.event_type AS eventType, c.city, c.church_id AS churchId,
             c.min_age AS minAge, c.max_age AS maxAge,
@@ -83,7 +85,7 @@ async function getConferenceById(id) {
 
 async function createConference(conference) {
     const {
-        title, category, location, date, description, image, price, capacity,
+        title, category, location, date, dateEnd, description, image, price, capacity,
         eventType, city, churchId, minAge, maxAge,
         requiresChurch, requiresRank, requiresConfessionFather, requiresAllergies,
         targetChurchId, targetCity, targetRank,
@@ -94,16 +96,16 @@ async function createConference(conference) {
     const [result] = await pool.query(`
         INSERT INTO conferences
         (
-            title, category, location, conference_date, description, image_url, price, capacity,
+            title, category, location, conference_date, event_end_date, description, image_url, price, capacity,
             event_type, city, church_id, min_age, max_age,
             requires_church, requires_rank, requires_confession_father, requires_allergies,
             target_church_id, target_city, target_rank,
             payment_link, payment_qr_url, payment_contact_name, payment_contact_phone, payment_instructions,
             registration_deadline, email_subject, email_body
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-        title, category, location, date, description, image, price, capacity,
+        title, category, location, date, dateEnd || null, description, image, price, capacity,
         eventType || "national",
         city || null,
         churchId || null,
@@ -204,6 +206,7 @@ async function getApprovedUsersForConference(conferenceId) {
             c.id AS eventId,
             c.title AS eventTitle,
             c.conference_date AS eventDate,
+            c.event_end_date AS eventDateEnd,
             c.location AS eventLocation,
             c.category AS eventCategory
         FROM registrations r
@@ -220,7 +223,7 @@ async function getApprovedUsersForConference(conferenceId) {
 
 async function updateConference(id, conference) {
     const {
-        title, category, location, date, description, image, price, capacity,
+        title, category, location, date, dateEnd, description, image, price, capacity,
         eventType, city, churchId, minAge, maxAge,
         requiresChurch, requiresRank, requiresConfessionFather, requiresAllergies,
         targetChurchId, targetCity, targetRank,
@@ -235,6 +238,7 @@ async function updateConference(id, conference) {
             category = ?,
             location = ?,
             conference_date = ?,
+            event_end_date = ?,
             description = ?,
             image_url = ?,
             price = ?,
@@ -265,6 +269,7 @@ async function updateConference(id, conference) {
         category,
         location,
         date,
+        dateEnd || null,
         description || "",
         image || "",
         Number(price || 0),

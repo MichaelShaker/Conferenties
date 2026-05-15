@@ -96,9 +96,15 @@ function getRegistrationEmailContent(registration) {
 
 function buildRegistrationStatusEmail(registration) {
     const content = getRegistrationEmailContent(registration);
-    const eventDate = registration.eventDate
+    const startDate = registration.eventDate
         ? new Intl.DateTimeFormat("nl-NL", { dateStyle: "long" }).format(new Date(registration.eventDate))
         : null;
+    const endDate = registration.eventDateEnd
+        ? new Intl.DateTimeFormat("nl-NL", { dateStyle: "long" }).format(new Date(registration.eventDateEnd))
+        : null;
+    const eventDate = startDate && endDate && String(registration.eventDate).slice(0, 10) !== String(registration.eventDateEnd).slice(0, 10)
+        ? `${startDate} t/m ${endDate}`
+        : startDate;
     const paymentStatusLabels = {
         pending: "Wacht op betaling",
         proof_uploaded: "Betaalbewijs geupload",
