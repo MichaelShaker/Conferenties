@@ -77,6 +77,7 @@ async function getMyRegistrations(userId) {
         SELECT
             r.id,
             r.payment_status AS paymentStatus,
+            r.payment_method AS paymentMethod,
             r.registration_status AS registrationStatus,
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
@@ -106,6 +107,7 @@ async function getAllRegistrations() {
         SELECT
             r.id,
             r.payment_status AS paymentStatus,
+            r.payment_method AS paymentMethod,
             r.registration_status AS registrationStatus,
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
@@ -156,7 +158,7 @@ async function getRegistrationPaymentProof(id) {
     return rows[0] || null;
 }
 
-async function updateRegistrationStatus(id, paymentStatus, registrationStatus, adminNote) {
+async function updateRegistrationStatus(id, paymentStatus, registrationStatus, adminNote, paymentMethod = null) {
     const [existingRows] = await pool.query(`
         SELECT payment_status AS paymentStatus, registration_status AS registrationStatus
         FROM registrations
@@ -170,18 +172,20 @@ async function updateRegistrationStatus(id, paymentStatus, registrationStatus, a
         SET
             payment_status = ?,
             registration_status = ?,
+            payment_method = ?,
             admin_note = ?,
             approved_at = CASE
                 WHEN ? IN ('confirmed', 'approved', 'goedgekeurd') THEN COALESCE(approved_at, NOW())
                 ELSE approved_at
             END
         WHERE id = ?
-    `, [paymentStatus, registrationStatus, adminNote || null, registrationStatus, id]);
+    `, [paymentStatus, registrationStatus, paymentMethod || null, adminNote || null, registrationStatus, id]);
 
     const [rows] = await pool.query(`
         SELECT
             r.id,
             r.payment_status AS paymentStatus,
+            r.payment_method AS paymentMethod,
             r.registration_status AS registrationStatus,
             ? AS previousPaymentStatus,
             ? AS previousRegistrationStatus,
@@ -245,6 +249,7 @@ async function getRegistrationById(id) {
         SELECT
             r.id,
             r.payment_status AS paymentStatus,
+            r.payment_method AS paymentMethod,
             r.registration_status AS registrationStatus,
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
@@ -271,7 +276,8 @@ async function uploadPaymentProof(id, userId, paymentProof) {
         SET 
             payment_proof = ?,
             payment_proof_uploaded_at = NOW(),
-            payment_status = 'proof_uploaded'
+            payment_status = 'proof_uploaded',
+            payment_method = COALESCE(payment_method, 'tikkie')
         WHERE id = ? AND user_id = ?
     `, [paymentProof, id, userId]);
 
@@ -280,6 +286,7 @@ async function uploadPaymentProof(id, userId, paymentProof) {
             id,
             conference_id AS conferenceId,
             payment_status AS paymentStatus,
+            payment_method AS paymentMethod,
             registration_status AS registrationStatus,
             payment_proof AS paymentProof,
             payment_proof_uploaded_at AS paymentProofUploadedAt

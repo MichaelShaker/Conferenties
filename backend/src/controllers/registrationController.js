@@ -465,7 +465,7 @@ async function getRegistrationPaymentProof(req, res) {
 async function updateRegistration(req, res) {
     try {
         const { id } = req.params;
-        const { paymentStatus, registrationStatus, adminNote } = req.body;
+        const { paymentStatus, registrationStatus, adminNote, paymentMethod } = req.body;
 
         if (!paymentStatus || !registrationStatus) {
             return res.status(400).json({
@@ -478,7 +478,8 @@ async function updateRegistration(req, res) {
             id,
             paymentStatus,
             registrationStatus,
-            adminNote
+            adminNote,
+            paymentMethod || null
         );
 
         if (!updatedRegistration) {

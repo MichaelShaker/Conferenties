@@ -1124,9 +1124,19 @@ td .table-actions .action-btn:hover {
   transform: translateY(-1px);
 }
 
+td .table-actions .action-btn:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
 td .table-actions .action-btn--primary {
   background: #dbeafe;
   color: #1d4ed8;
+}
+
+td .table-actions .action-btn--primary:hover {
+  background: #2563eb;
+  color: #ffffff;
 }
 
 td .table-actions .action-btn--danger {
@@ -1134,9 +1144,19 @@ td .table-actions .action-btn--danger {
   color: #dc2626;
 }
 
+td .table-actions .action-btn--danger:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
 td .table-actions .action-btn--mail {
   background: #ede9fe;
   color: #6d28d9;
+}
+
+td .table-actions .action-btn--mail:hover {
+  background: #7c3aed;
+  color: #ffffff;
 }
 
 td .table-actions .action-btn--neutral {
@@ -1144,9 +1164,19 @@ td .table-actions .action-btn--neutral {
   color: #334155;
 }
 
+td .table-actions .action-btn--neutral:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
 td .table-actions .action-btn--sheet {
   background: #dcfce7;
   color: #15803d;
+}
+
+td .table-actions .action-btn--sheet:hover {
+  background: #16a34a;
+  color: #ffffff;
 }
 
 .panel-heading {
@@ -1615,6 +1645,15 @@ td strong {
 
   .builder-steps {
     grid-template-columns: 1fr;
+  }
+
+  td .table-actions {
+    grid-template-columns: 1fr;
+    min-width: 170px;
+  }
+
+  td .table-actions .action-btn {
+    width: 100%;
   }
 
   .builder-steps button {

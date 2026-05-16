@@ -244,6 +244,7 @@
               <th>Event</th>
               <th>Datum</th>
               <th>Extra</th>
+              <th>Betaalmethode</th>
               <th>Betaalstatus</th>
               <th>Registratie</th>
               <th>Admin notitie</th>
@@ -272,6 +273,18 @@
                   <span>{{ registration.shirtSize || 'Geen shirtmaat' }}</span>
                   <span>{{ transportOptionText(registration.transportOption) }}</span>
                 </div>
+              </td>
+
+              <td>
+                <select
+                    v-model="registration.paymentMethod"
+                    class="payment-method-select"
+                    @change="saveRegistrationNote(registration)"
+                >
+                  <option value="">Nog niet gekozen</option>
+                  <option value="tikkie">Tikkie / bewijs</option>
+                  <option value="cash">Cash</option>
+                </select>
               </td>
 
               <td>
@@ -315,7 +328,6 @@
                   <button
                       class="approve-button"
                       @click="approveRegistration(registration)"
-                      :disabled="!registration.hasPaymentProof"
                   >
                     Goedkeuren
                   </button>
@@ -664,6 +676,13 @@ function paymentStatusText(status) {
   return status || '-'
 }
 
+function paymentMethodText(method) {
+  if (method === 'cash') return 'Cash'
+  if (method === 'tikkie') return 'Tikkie / bewijs'
+
+  return 'Nog niet gekozen'
+}
+
 function registrationStatusText(status) {
   if (status === 'pending') return 'In behandeling'
   if (status === 'confirmed') return 'Bevestigd'
@@ -756,17 +775,21 @@ async function openPaymentProof(registration) {
 
 async function approveRegistration(registration) {
   try {
+    const paymentMethod = registration.paymentMethod || (registration.hasPaymentProof ? 'tikkie' : 'cash')
+
     await updateRegistrationStatus(registration.id, {
       paymentStatus: 'paid',
       registrationStatus: 'confirmed',
-      adminNote: registration.adminNote || null
+      adminNote: registration.adminNote || null,
+      paymentMethod
     })
 
     registration.paymentStatus = 'paid'
     registration.registrationStatus = 'confirmed'
+    registration.paymentMethod = paymentMethod
 
     success.value = true
-    message.value = 'Registratie goedgekeurd. De gebruiker is nu officieel ingeschreven.'
+    message.value = `Registratie goedgekeurd (${paymentMethodText(paymentMethod)}). De gebruiker is nu officieel ingeschreven.`
   } catch (error) {
     success.value = false
     message.value = error.message
@@ -778,7 +801,8 @@ async function markAsRejected(registration) {
     await updateRegistrationStatus(registration.id, {
       paymentStatus: 'rejected',
       registrationStatus: 'rejected',
-      adminNote: registration.adminNote || null
+      adminNote: registration.adminNote || null,
+      paymentMethod: registration.paymentMethod || null
     })
 
     registration.paymentStatus = 'rejected'
@@ -797,7 +821,8 @@ async function saveRegistrationNote(registration) {
     await updateRegistrationStatus(registration.id, {
       paymentStatus: registration.paymentStatus,
       registrationStatus: registration.registrationStatus,
-      adminNote: registration.adminNote || null
+      adminNote: registration.adminNote || null,
+      paymentMethod: registration.paymentMethod || null
     })
 
     success.value = true
@@ -1403,6 +1428,24 @@ td strong {
   white-space: nowrap;
 }
 
+.payment-method-select {
+  width: 150px;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 900;
+  outline: none;
+}
+
+.payment-method-select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
 .proof-button {
   background: #f1f5f9;
   color: #0f172a;
@@ -1605,6 +1648,11 @@ td strong {
   .preview-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .payment-method-select {
+    width: 100%;
+    min-width: 150px;
   }
 }
 </style>
