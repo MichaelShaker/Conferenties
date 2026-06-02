@@ -87,7 +87,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: |
             michaels12/conferenties-frontend:latest
             michaels12/conferenties-frontend:${{ steps.vars.outputs.hash }}
@@ -98,7 +98,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: |
             michaels12/conferenties-backend:latest
             michaels12/conferenties-backend:${{ steps.vars.outputs.hash }}
