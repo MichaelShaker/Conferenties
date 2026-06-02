@@ -19,6 +19,49 @@ const GOOGLE_SCOPES = [
 
 let ensureGoogleSchemaPromise = null;
 
+class GoogleApiError extends Error {
+    constructor(message, status, details = null) {
+        super(message);
+        this.name = "GoogleApiError";
+        this.status = status;
+        this.details = details;
+    }
+}
+
+async function parseGoogleResponse(response, fallbackMessage) {
+    const text = await response.text();
+    let result = {};
+
+    try {
+        result = text ? JSON.parse(text) : {};
+    } catch (error) {
+        if (!response.ok) {
+            throw new GoogleApiError(fallbackMessage, response.status, text);
+        }
+
+        throw new GoogleApiError("Google returned an invalid response", response.status, text);
+    }
+
+    if (!response.ok) {
+        throw new GoogleApiError(
+            result.error?.message || fallbackMessage,
+            response.status,
+            result.error || result
+        );
+    }
+
+    return result;
+}
+
+function isRecoverableSpreadsheetAccessError(error) {
+    return error instanceof GoogleApiError && [403, 404].includes(error.status);
+}
+
+function createA1Range(sheetTitle, cellRange) {
+    const escapedTitle = String(sheetTitle).replace(/'/g, "''");
+    return `'${escapedTitle}'!${cellRange}`;
+}
+
 function getGoogleConfig() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -416,11 +459,7 @@ async function createSpreadsheet(accessToken, conference) {
         })
     });
 
-    const result = await response.json();
-
-    if (!response.ok) {
-        throw new Error(result.error?.message || "Could not create Google Sheet");
-    }
+    const result = await parseGoogleResponse(response, "Could not create Google Sheet");
 
     await pool.query(`
         UPDATE conferences
@@ -449,11 +488,7 @@ async function getSheetProperties(accessToken, spreadsheetId) {
         }
     );
 
-    const result = await response.json();
-
-    if (!response.ok) {
-        throw new Error(result.error?.message || "Could not read Google Sheet metadata");
-    }
+    const result = await parseGoogleResponse(response, "Could not read Google Sheet metadata");
 
     return result.sheets?.map(sheet => sheet.properties) || [];
 }
@@ -479,18 +514,14 @@ async function ensureWorkbookTabs(accessToken, spreadsheetId, tabTitles) {
             })
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error?.message || "Could not add Google Sheet tabs");
-        }
+        await parseGoogleResponse(response, "Could not add Google Sheet tabs");
     }
 
     return getSheetProperties(accessToken, spreadsheetId);
 }
 
 async function clearSheet(accessToken, spreadsheetId, title) {
-    await fetch(`${GOOGLE_SHEETS_URL}/${spreadsheetId}/values/${encodeURIComponent(`${title}!A:Z`)}:clear`, {
+    const response = await fetch(`${GOOGLE_SHEETS_URL}/${spreadsheetId}/values/${encodeURIComponent(createA1Range(title, "A:Z"))}:clear`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -498,11 +529,13 @@ async function clearSheet(accessToken, spreadsheetId, title) {
         },
         body: JSON.stringify({})
     });
+
+    await parseGoogleResponse(response, "Could not clear Google Sheet");
 }
 
 async function updateSheetValues(accessToken, spreadsheetId, title, rows) {
     const response = await fetch(
-        `${GOOGLE_SHEETS_URL}/${spreadsheetId}/values/${encodeURIComponent(`${title}!A1`)}?valueInputOption=RAW`,
+        `${GOOGLE_SHEETS_URL}/${spreadsheetId}/values/${encodeURIComponent(createA1Range(title, "A1"))}?valueInputOption=RAW`,
         {
             method: "PUT",
             headers: {
@@ -515,15 +548,11 @@ async function updateSheetValues(accessToken, spreadsheetId, title, rows) {
         }
     );
 
-    const result = await response.json();
-
-    if (!response.ok) {
-        throw new Error(result.error?.message || "Could not update Google Sheet");
-    }
+    await parseGoogleResponse(response, "Could not update Google Sheet");
 }
 
 async function formatSheet(accessToken, spreadsheetId, sheetId, columnCount = 24) {
-    await fetch(`${GOOGLE_SHEETS_URL}/${spreadsheetId}:batchUpdate`, {
+    const response = await fetch(`${GOOGLE_SHEETS_URL}/${spreadsheetId}:batchUpdate`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -572,6 +601,8 @@ async function formatSheet(accessToken, spreadsheetId, sheetId, columnCount = 24
             ]
         })
     });
+
+    await parseGoogleResponse(response, "Could not format Google Sheet");
 }
 
 async function markSheetSyncSuccess(conferenceId) {
@@ -591,7 +622,37 @@ async function markSheetSyncError(conferenceId, reason) {
     `, [reason, conferenceId]);
 }
 
-async function syncConferenceSheet(conferenceId) {
+async function clearConferenceSpreadsheet(conferenceId) {
+    await pool.query(`
+        UPDATE conferences
+        SET google_sheet_id = NULL,
+            google_sheet_url = NULL
+        WHERE id = ?
+    `, [conferenceId]);
+}
+
+async function getOrCreateSpreadsheet(accessToken, conference) {
+    if (!conference.googleSheetId) {
+        return createSpreadsheet(accessToken, conference);
+    }
+
+    try {
+        return {
+            id: conference.googleSheetId,
+            url: conference.googleSheetUrl,
+            sheets: await getSheetProperties(accessToken, conference.googleSheetId)
+        };
+    } catch (error) {
+        if (!isRecoverableSpreadsheetAccessError(error)) {
+            throw error;
+        }
+
+        await clearConferenceSpreadsheet(conference.id);
+        return createSpreadsheet(accessToken, conference);
+    }
+}
+
+async function syncConferenceSheetCore(conferenceId) {
     const status = await getStatus();
 
     if (!status.connected) {
@@ -608,13 +669,7 @@ async function syncConferenceSheet(conferenceId) {
     }
 
     const accessToken = await getAccessToken();
-    const sheet = conference.googleSheetId
-        ? {
-            id: conference.googleSheetId,
-            url: conference.googleSheetUrl,
-            sheets: await getSheetProperties(accessToken, conference.googleSheetId)
-        }
-        : await createSpreadsheet(accessToken, conference);
+    const sheet = await getOrCreateSpreadsheet(accessToken, conference);
 
     const registrations = await conferenceService.getApprovedUsersForConference(conferenceId);
     const tabs = createWorkbookTabs(registrations);
@@ -642,12 +697,20 @@ async function syncConferenceSheet(conferenceId) {
     };
 }
 
+async function syncConferenceSheet(conferenceId) {
+    try {
+        return await syncConferenceSheetCore(conferenceId);
+    } catch (error) {
+        await markSheetSyncError(conferenceId, error.message);
+        throw error;
+    }
+}
+
 async function syncConferenceSheetQuietly(conferenceId) {
     try {
         return await syncConferenceSheet(conferenceId);
     } catch (error) {
         console.error("Google Sheets sync error:", error.message);
-        await markSheetSyncError(conferenceId, error.message);
         return {
             skipped: true,
             reason: error.message
