@@ -17,17 +17,50 @@ async function handleResponse(response) {
         result = text ? JSON.parse(text) : {};
     } catch (error) {
         if (!response.ok) {
-            throw new Error(`Server error ${response.status}. Please try again or check the backend logs.`);
+            throw createApiError(response.status, {
+                code: `HTTP_${response.status}`,
+                message: "De server gaf een onverwachte fout terug.",
+                description: "We konden de foutmelding niet goed lezen.",
+                action: "Probeer het opnieuw. Blijft dit gebeuren, geef de foutcode door aan support."
+            });
         }
 
-        throw new Error("Server returned an invalid response");
+        throw createApiError(response.status, {
+            code: "INVALID_SERVER_RESPONSE",
+            message: "De server gaf een onverwacht antwoord.",
+            description: "De pagina kon het antwoord van de server niet goed verwerken.",
+            action: "Ververs de pagina en probeer het opnieuw."
+        });
     }
 
     if (!response.ok) {
-        throw new Error(result.message || "Something went wrong");
+        throw createApiError(response.status, result);
     }
 
     return result;
+}
+
+function createApiError(status, result = {}) {
+    const userMessage = result.message || `Er ging iets mis. Foutcode: HTTP_${status}`;
+    const displayMessage = [
+        userMessage,
+        result.description || "",
+        result.action ? `Wat kun je doen: ${result.action}` : "",
+        result.code ? `Foutcode: ${result.code}` : `Foutcode: HTTP_${status}`
+    ].filter(Boolean).join("\n");
+    const error = new Error(displayMessage);
+
+    error.status = status;
+    error.code = result.code || `HTTP_${status}`;
+    error.description = result.description || "";
+    error.action = result.action || "Probeer het opnieuw. Blijft dit gebeuren, geef de foutcode door aan support.";
+    error.displayMessage = displayMessage;
+
+    return error;
+}
+
+function getErrorMessage(error) {
+    return error?.displayMessage || error?.message || "Er ging iets mis.";
 }
 
 export async function fetchConferences() {
@@ -57,11 +90,16 @@ export async function loginUser(formData) {
     try {
         result = text ? JSON.parse(text) : {};
     } catch (error) {
-        throw new Error(text || "Server returned an invalid login response");
+        throw createApiError(response.status, {
+            code: "LOGIN_INVALID_SERVER_RESPONSE",
+            message: "Inloggen gaf een onverwacht antwoord.",
+            description: text || "De pagina kon het antwoord van de server niet goed verwerken.",
+            action: "Ververs de pagina en probeer opnieuw in te loggen."
+        });
     }
 
     if (!response.ok) {
-        throw new Error(result.message || "Login failed");
+        throw createApiError(response.status, result);
     }
 
     return result;

@@ -4,6 +4,7 @@ const googleSheetsService = require("../services/googleSheetsService");
 const { escapeHtml } = require("../utils/html");
 const { logAudit } = require("../services/auditService");
 const { logEmail } = require("../services/emailLogService");
+const { sendError } = require("../utils/apiError");
 
 const MAX_PAYMENT_PROOF_LENGTH = 2_500_000;
 
@@ -312,9 +313,10 @@ async function registerForConference(req, res) {
         const { conferenceId, shirtSize, transportOption } = req.body;
 
         if (!conferenceId) {
-            return res.status(400).json({
-                success: false,
-                message: "conferenceId is required"
+            return sendError(res, 400, "REGISTRATION_EVENT_REQUIRED", {
+                message: "Kies een event om je in te schrijven.",
+                description: "We missen welk event bij deze inschrijving hoort.",
+                action: "Ga terug naar het event en probeer opnieuw in te schrijven."
             });
         }
 
@@ -324,9 +326,10 @@ async function registerForConference(req, res) {
         });
 
         if (result.error) {
-            return res.status(result.status).json({
-                success: false,
-                message: result.error
+            return sendError(res, result.status, result.code || "REGISTRATION_FAILED", {
+                message: result.error,
+                description: result.description,
+                action: result.action
             });
         }
 
@@ -339,9 +342,10 @@ async function registerForConference(req, res) {
         });
     } catch (error) {
         console.error("Error creating registration:", error.message);
-        res.status(500).json({
-            success: false,
-            message: "Could not create registration"
+        sendError(res, 500, "REGISTRATION_CREATE_FAILED", {
+            message: "Inschrijven is niet gelukt.",
+            description: "Er ging iets mis bij het opslaan van je inschrijving.",
+            action: "Probeer het later opnieuw. Blijft dit gebeuren, geef de foutcode door aan support."
         });
     }
 }
@@ -353,16 +357,18 @@ async function uploadPaymentProof(req, res) {
         const { paymentProof } = req.body;
 
         if (!paymentProof) {
-            return res.status(400).json({
-                success: false,
-                message: "Payment proof is required"
+            return sendError(res, 400, "PAYMENT_PROOF_REQUIRED", {
+                message: "Upload eerst je betaalbewijs.",
+                description: "We hebben een afbeelding van je betaalbewijs nodig om je betaling te controleren.",
+                action: "Kies een PNG, JPG of WebP-afbeelding en probeer opnieuw."
             });
         }
 
         if (!isValidPaymentProof(paymentProof)) {
-            return res.status(400).json({
-                success: false,
-                message: "Payment proof must be a PNG, JPG or WebP image under 2.5MB"
+            return sendError(res, 400, "PAYMENT_PROOF_INVALID_FILE", {
+                message: "Dit betaalbewijs kan niet worden geüpload.",
+                description: "Alleen PNG, JPG of WebP-afbeeldingen onder 2,5MB zijn toegestaan.",
+                action: "Maak de afbeelding kleiner of kies een ander bestand en probeer opnieuw."
             });
         }
 
@@ -373,9 +379,10 @@ async function uploadPaymentProof(req, res) {
         );
 
         if (!updatedRegistration) {
-            return res.status(404).json({
-                success: false,
-                message: "Registration not found"
+            return sendError(res, 404, "REGISTRATION_NOT_FOUND", {
+                message: "We konden je inschrijving niet vinden.",
+                description: "De inschrijving is mogelijk verwijderd of hoort bij een ander account.",
+                action: "Ga naar Mijn registraties en probeer het daar opnieuw."
             });
         }
 
@@ -388,9 +395,10 @@ async function uploadPaymentProof(req, res) {
         });
     } catch (error) {
         console.error("Error uploading payment proof:", error.message);
-        res.status(500).json({
-            success: false,
-            message: "Could not upload payment proof"
+        sendError(res, 500, "PAYMENT_PROOF_UPLOAD_FAILED", {
+            message: "Betaalbewijs uploaden is niet gelukt.",
+            description: "Er ging iets mis bij het opslaan van je betaalbewijs.",
+            action: "Probeer het opnieuw. Blijft dit gebeuren, gebruik een kleinere afbeelding of neem contact op."
         });
     }
 }

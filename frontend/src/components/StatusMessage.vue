@@ -1,11 +1,16 @@
 <template>
   <div v-if="message" :class="['message', success ? 'message-success' : 'message-error']">
-    {{ message }}
+    <template v-for="(line, index) in messageLines" :key="`${line}-${index}`">
+      <strong v-if="index === 0">{{ line }}</strong>
+      <span v-else>{{ line }}</span>
+    </template>
   </div>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   message: {
     type: String,
     default: ''
@@ -15,4 +20,6 @@ defineProps({
     default: false
   }
 })
+
+const messageLines = computed(() => props.message.split('\n').filter(Boolean))
 </script>

@@ -56,15 +56,26 @@ export default {
         );
 
         const data = await response.json();
-        this.message = data.message;
 
-        this.message = response.data.message;
+        if (!response.ok) {
+          this.error = this.formatApiError(data, response.status);
+          return;
+        }
+
+        this.message = data.message;
       } catch (error) {
-        this.error =
-            error.response?.data?.message || "Er ging iets mis.";
+        this.error = "Er ging iets mis.\nWat kun je doen: Ververs de pagina en probeer het opnieuw.\nFoutcode: PASSWORD_RESET_REQUEST_ERROR";
       } finally {
         this.loading = false;
       }
+    },
+    formatApiError(data, status) {
+      return [
+        data.message || "Er ging iets mis.",
+        data.description || "",
+        data.action ? `Wat kun je doen: ${data.action}` : "",
+        data.code ? `Foutcode: ${data.code}` : `Foutcode: HTTP_${status}`
+      ].filter(Boolean).join("\n");
     }
   }
 };
@@ -161,12 +172,14 @@ export default {
   margin-top: 18px;
   color: #16a34a;
   font-weight: 600;
+  white-space: pre-line;
 }
 
 .error {
   margin-top: 18px;
   color: #dc2626;
   font-weight: 600;
+  white-space: pre-line;
 }
 
 /* RESPONSIVE */

@@ -1,5 +1,6 @@
 const googleSheetsService = require("../services/googleSheetsService");
 const { escapeHtml } = require("../utils/html");
+const { sendError } = require("../utils/apiError");
 
 async function getStatus(req, res) {
     try {
@@ -10,9 +11,10 @@ async function getStatus(req, res) {
             data: status
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message || "Could not get Google status"
+        sendError(res, 500, "GOOGLE_STATUS_FAILED", {
+            message: "Google-status ophalen is niet gelukt.",
+            description: "De server kon de Google-koppeling niet controleren.",
+            action: "Ververs de pagina. Blijft dit gebeuren, verbind Google opnieuw of neem contact op met support."
         });
     }
 }
@@ -28,9 +30,10 @@ async function getAuthUrl(req, res) {
             }
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message || "Could not start Google connection"
+        sendError(res, 500, "GOOGLE_CONNECT_START_FAILED", {
+            message: "Google verbinden is niet gelukt.",
+            description: "De server kon de Google-toestemmingspagina niet starten.",
+            action: "Controleer de Google configuratie en probeer opnieuw."
         });
     }
 }
@@ -98,9 +101,10 @@ async function syncConference(req, res) {
             data: result
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message || "Could not sync Google Sheet"
+        sendError(res, 500, "GOOGLE_SYNC_FAILED", {
+            message: "Google Sheet bijwerken is niet gelukt.",
+            description: error.message || "De Google Sheet kon niet worden bijgewerkt.",
+            action: "Klik op Herstel sync. Blijft dit gebeuren, verbind Google opnieuw en probeer daarna opnieuw."
         });
     }
 }
@@ -114,9 +118,10 @@ async function syncAllConferences(req, res) {
             data: result
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message || "Could not sync Google Sheets"
+        sendError(res, 500, "GOOGLE_SYNC_ALL_FAILED", {
+            message: "Google Sheets bijwerken is niet gelukt.",
+            description: error.message || "Een of meer Google Sheets konden niet worden bijgewerkt.",
+            action: "Bekijk de foutmelding per event. Verbind Google opnieuw als meerdere events blijven falen."
         });
     }
 }

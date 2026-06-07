@@ -384,6 +384,18 @@ textarea:focus {
     padding: 14px 16px;
     border-radius: 14px;
     font-weight: 500;
+    display: grid;
+    gap: 4px;
+    line-height: 1.45;
+    white-space: pre-line;
+}
+
+.message strong {
+    font-weight: 800;
+}
+
+.message span {
+    font-size: 0.94rem;
 }
 
 .message-success {

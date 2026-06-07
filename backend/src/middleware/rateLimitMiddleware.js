@@ -1,3 +1,5 @@
+const { sendError } = require("../utils/apiError");
+
 function createRateLimiter({ windowMs, max, message }) {
     const attempts = new Map();
 
@@ -18,9 +20,10 @@ function createRateLimiter({ windowMs, max, message }) {
         attempts.set(key, current);
 
         if (current.count > max) {
-            return res.status(429).json({
-                success: false,
-                message
+            return sendError(res, 429, "TOO_MANY_ATTEMPTS", {
+                message,
+                description: "Deze beveiliging voorkomt te veel pogingen in korte tijd.",
+                action: "Wacht een paar minuten en probeer het daarna opnieuw."
             });
         }
 

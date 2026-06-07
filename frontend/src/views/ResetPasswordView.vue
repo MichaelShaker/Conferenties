@@ -77,7 +77,7 @@ export default {
         const data = await response.json();
 
         if (!response.ok) {
-          this.error = data.message || "Er ging iets mis.";
+          this.error = this.formatApiError(data, response.status);
           return;
         }
 
@@ -87,10 +87,18 @@ export default {
           this.$router.push("/login");
         }, 1500);
       } catch (error) {
-        this.error = "Er ging iets mis.";
+        this.error = "Er ging iets mis.\nWat kun je doen: Ververs de pagina en probeer het opnieuw.\nFoutcode: PASSWORD_RESET_SAVE_ERROR";
       } finally {
         this.loading = false;
       }
+    },
+    formatApiError(data, status) {
+      return [
+        data.message || "Er ging iets mis.",
+        data.description || "",
+        data.action ? `Wat kun je doen: ${data.action}` : "",
+        data.code ? `Foutcode: ${data.code}` : `Foutcode: HTTP_${status}`
+      ].filter(Boolean).join("\n");
     }
   }
 };
@@ -169,6 +177,7 @@ export default {
   margin-top: 18px;
   text-align: center;
   font-weight: 600;
+  white-space: pre-line;
 }
 
 .message {

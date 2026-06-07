@@ -1,10 +1,12 @@
 const pool = require("../config/db");
+const { sendError } = require("../utils/apiError");
 
 async function adminMiddleware(req, res, next) {
     if (!req.user?.id) {
-        return res.status(403).json({
-            success: false,
-            message: "Forbidden: admin access required"
+        return sendError(res, 403, "ADMIN_ACCESS_REQUIRED", {
+            message: "Je hebt geen beheerrechten.",
+            description: "Deze pagina of actie is alleen voor beheerders.",
+            action: "Log in met een beheerdersaccount of vraag een beheerder om hulp."
         });
     }
 
@@ -17,9 +19,10 @@ async function adminMiddleware(req, res, next) {
         const user = rows[0];
 
         if (!user || user.role !== "admin") {
-            return res.status(403).json({
-                success: false,
-                message: "Forbidden: admin access required"
+            return sendError(res, 403, "ADMIN_ACCESS_REQUIRED", {
+                message: "Je hebt geen beheerrechten.",
+                description: "Deze pagina of actie is alleen voor beheerders.",
+                action: "Log in met een beheerdersaccount of vraag een beheerder om hulp."
             });
         }
 
@@ -28,9 +31,10 @@ async function adminMiddleware(req, res, next) {
     } catch (error) {
         console.error("Admin middleware error:", error.message);
 
-        return res.status(500).json({
-            success: false,
-            message: "Could not verify admin access"
+        return sendError(res, 500, "ADMIN_ACCESS_CHECK_FAILED", {
+            message: "We konden je rechten niet controleren.",
+            description: "Er ging iets mis bij het controleren van je accountrechten.",
+            action: "Ververs de pagina. Blijft dit gebeuren, geef de foutcode door aan support."
         });
     }
 }

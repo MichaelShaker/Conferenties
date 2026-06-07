@@ -2,15 +2,17 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const pool = require("../config/db");
 const { sendMail } = require("../services/mailService");
+const { sendError } = require("../utils/apiError");
 
 async function forgotPassword(req, res) {
     try {
         const { email } = req.body;
 
         if (!email) {
-            return res.status(400).json({
-                success: false,
-                message: "Email is required"
+            return sendError(res, 400, "PASSWORD_RESET_EMAIL_REQUIRED", {
+                message: "Vul je e-mailadres in.",
+                description: "We hebben je e-mailadres nodig om een resetlink te sturen.",
+                action: "Vul je e-mailadres in en probeer opnieuw."
             });
         }
 
@@ -22,7 +24,7 @@ async function forgotPassword(req, res) {
         if (users.length === 0) {
             return res.json({
                 success: true,
-                message: "If this email exists, a reset link has been sent"
+                message: "Als dit e-mailadres bekend is, sturen we een resetlink."
             });
         }
 
@@ -56,13 +58,14 @@ async function forgotPassword(req, res) {
 
         res.json({
             success: true,
-            message: "If this email exists, a reset link has been sent"
+            message: "Als dit e-mailadres bekend is, sturen we een resetlink."
         });
     } catch (error) {
         console.error("Forgot password error:", error.message);
-        res.status(500).json({
-            success: false,
-            message: "Could not send reset email"
+        sendError(res, 500, "PASSWORD_RESET_EMAIL_FAILED", {
+            message: "Resetmail versturen is niet gelukt.",
+            description: "Er ging iets mis bij het versturen van de e-mail.",
+            action: "Probeer het later opnieuw. Controleer ook je spammap als je al een link hebt aangevraagd."
         });
     }
 }
@@ -73,9 +76,10 @@ async function resetPassword(req, res) {
         const { password } = req.body;
 
         if (!password) {
-            return res.status(400).json({
-                success: false,
-                message: "Password is required"
+            return sendError(res, 400, "PASSWORD_REQUIRED", {
+                message: "Vul een nieuw wachtwoord in.",
+                description: "Je kunt je wachtwoord pas wijzigen als je een nieuw wachtwoord kiest.",
+                action: "Vul een nieuw wachtwoord in en probeer opnieuw."
             });
         }
 
@@ -90,9 +94,10 @@ async function resetPassword(req, res) {
         );
 
         if (users.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid or expired reset token"
+            return sendError(res, 400, "PASSWORD_RESET_LINK_EXPIRED", {
+                message: "Deze resetlink is verlopen of ongeldig.",
+                description: "Resetlinks zijn tijdelijk geldig om je account te beschermen.",
+                action: "Vraag opnieuw een wachtwoord-reset aan."
             });
         }
 
@@ -112,13 +117,14 @@ async function resetPassword(req, res) {
 
         res.json({
             success: true,
-            message: "Password reset successfully"
+            message: "Je wachtwoord is aangepast. Je kunt nu inloggen."
         });
     } catch (error) {
         console.error("Reset password error:", error.message);
-        res.status(500).json({
-            success: false,
-            message: "Could not reset password"
+        sendError(res, 500, "PASSWORD_RESET_FAILED", {
+            message: "Wachtwoord aanpassen is niet gelukt.",
+            description: "Er ging iets mis bij het opslaan van je nieuwe wachtwoord.",
+            action: "Probeer het later opnieuw of vraag een nieuwe resetlink aan."
         });
     }
 }

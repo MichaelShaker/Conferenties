@@ -1,13 +1,15 @@
 const jwt = require("jsonwebtoken");
+const { sendError } = require("../utils/apiError");
 
 function authMiddleware(req, res, next) {
     try {
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return res.status(401).json({
-                success: false,
-                message: "Unauthorized: no token provided"
+            return sendError(res, 401, "AUTH_LOGIN_REQUIRED", {
+                message: "Log in om verder te gaan.",
+                description: "Voor deze pagina of actie moet je ingelogd zijn.",
+                action: "Log in met je account en probeer het opnieuw."
             });
         }
 
@@ -24,9 +26,10 @@ function authMiddleware(req, res, next) {
         };
 
         if (!req.user.id) {
-            return res.status(401).json({
-                success: false,
-                message: "Unauthorized: token does not contain user id"
+            return sendError(res, 401, "AUTH_SESSION_INVALID", {
+                message: "Je login is niet meer geldig.",
+                description: "Je sessie mist accountgegevens die nodig zijn om verder te gaan.",
+                action: "Log uit, log opnieuw in en probeer het daarna nog een keer."
             });
         }
 
@@ -34,9 +37,10 @@ function authMiddleware(req, res, next) {
     } catch (error) {
         console.error("Auth error:", error.message);
 
-        return res.status(401).json({
-            success: false,
-            message: "Unauthorized: invalid or expired token"
+        return sendError(res, 401, "AUTH_SESSION_EXPIRED", {
+            message: "Je sessie is verlopen.",
+            description: "Dat gebeurt soms als je lang niets hebt gedaan of opnieuw bent ingelogd op een ander apparaat.",
+            action: "Log opnieuw in en probeer het daarna nog een keer."
         });
     }
 }

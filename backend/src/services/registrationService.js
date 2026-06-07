@@ -11,8 +11,11 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
 
     if (userRows.length === 0) {
         return {
-            error: "Your account was not found. Please log out and log in again.",
-            status: 401
+            error: "We konden je account niet vinden.",
+            status: 401,
+            code: "REGISTRATION_ACCOUNT_NOT_FOUND",
+            description: "Je login verwijst naar een account dat niet meer bestaat.",
+            action: "Log uit, log opnieuw in en probeer het daarna nog een keer."
         };
     }
 
@@ -25,7 +28,13 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
     const conference = conferenceRows[0];
 
     if (!conference) {
-        return { error: "Conference not found", status: 404 };
+        return {
+            error: "We konden dit event niet vinden.",
+            status: 404,
+            code: "EVENT_NOT_FOUND",
+            description: "Het event is mogelijk verwijderd of de link klopt niet meer.",
+            action: "Ga terug naar het eventoverzicht en kies het event opnieuw."
+        };
     }
 
     if (conference.registrationDeadline) {
@@ -33,7 +42,13 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
         deadline.setHours(23, 59, 59, 999);
 
         if (new Date() > deadline) {
-            return { error: "The registration deadline has passed", status: 400 };
+            return {
+                error: "De inschrijfdeadline is voorbij.",
+                status: 400,
+                code: "REGISTRATION_DEADLINE_PASSED",
+                description: "Voor dit event kun je je niet meer aanmelden via de website.",
+                action: "Neem contact op met de organisatie als je denkt dat dit niet klopt."
+            };
         }
     }
 
@@ -44,7 +59,13 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
     `, [userId, conferenceId]);
 
     if (existingRows.length > 0) {
-        return { error: "You are already registered for this event", status: 409 };
+        return {
+            error: "Je bent al ingeschreven voor dit event.",
+            status: 409,
+            code: "REGISTRATION_ALREADY_EXISTS",
+            description: "Er staat al een aanmelding voor jouw account bij dit event.",
+            action: "Bekijk je inschrijving bij Mijn registraties."
+        };
     }
 
     const [countRows] = await pool.query(`
@@ -56,7 +77,13 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
     `, [conferenceId]);
 
     if (countRows[0].total >= conference.capacity) {
-        return { error: "This event is full", status: 400 };
+        return {
+            error: "Dit event zit vol.",
+            status: 400,
+            code: "REGISTRATION_EVENT_FULL",
+            description: "Er zijn geen beschikbare plekken meer voor dit event.",
+            action: "Kies eventueel een ander event of neem contact op met de organisatie."
+        };
     }
 
     const [result] = await pool.query(`

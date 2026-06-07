@@ -5,6 +5,7 @@ const { escapeHtml } = require("../utils/html");
 const { logAudit } = require("../services/auditService");
 const { createUnsubscribeFooter } = require("../services/unsubscribeService");
 const { logEmail } = require("../services/emailLogService");
+const { sendError } = require("../utils/apiError");
 
 function formatDisplayDate(value) {
     if (!value) return "-";
@@ -111,9 +112,10 @@ async function getConference(req, res) {
         const conference = await conferenceService.getConferenceById(id);
 
         if (!conference) {
-            return res.status(404).json({
-                success: false,
-                message: "Conference not found"
+            return sendError(res, 404, "EVENT_NOT_FOUND", {
+                message: "We konden dit event niet vinden.",
+                description: "Het event is mogelijk verwijderd of de link klopt niet meer.",
+                action: "Ga terug naar het eventoverzicht en kies het event opnieuw."
             });
         }
 
@@ -167,16 +169,18 @@ async function createConference(req, res) {
         } = req.body;
 
         if (!title || !category || !location || !date) {
-            return res.status(400).json({
-                success: false,
-                message: "Title, category, location and date are required"
+            return sendError(res, 400, "EVENT_REQUIRED_FIELDS", {
+                message: "Vul de verplichte eventgegevens in.",
+                description: "Titel, categorie, locatie en startdatum zijn verplicht.",
+                action: "Controleer het formulier en probeer opnieuw."
             });
         }
 
         if (dateEnd && new Date(dateEnd) < new Date(date)) {
-            return res.status(400).json({
-                success: false,
-                message: "End date cannot be before start date"
+            return sendError(res, 400, "EVENT_END_BEFORE_START", {
+                message: "De einddatum kan niet vóór de startdatum liggen.",
+                description: "Een event moet eindigen op of na de startdatum.",
+                action: "Pas de einddatum aan en probeer opnieuw."
             });
         }
 
@@ -247,16 +251,18 @@ async function updateConference(req, res) {
         const existingConference = await conferenceService.getConferenceById(id);
 
         if (!existingConference) {
-            return res.status(404).json({
-                success: false,
-                message: "Conference not found"
+            return sendError(res, 404, "EVENT_NOT_FOUND", {
+                message: "We konden dit event niet vinden.",
+                description: "Het event is mogelijk verwijderd of de link klopt niet meer.",
+                action: "Ga terug naar het eventoverzicht en kies het event opnieuw."
             });
         }
 
         if (date && dateEnd && new Date(dateEnd) < new Date(date)) {
-            return res.status(400).json({
-                success: false,
-                message: "End date cannot be before start date"
+            return sendError(res, 400, "EVENT_END_BEFORE_START", {
+                message: "De einddatum kan niet vóór de startdatum liggen.",
+                description: "Een event moet eindigen op of na de startdatum.",
+                action: "Pas de einddatum aan en probeer opnieuw."
             });
         }
 
@@ -292,9 +298,10 @@ async function deleteConference(req, res) {
         const deleted = await conferenceService.deleteConference(id);
 
         if (!deleted) {
-            return res.status(404).json({
-                success: false,
-                message: "Conference not found"
+            return sendError(res, 404, "EVENT_NOT_FOUND", {
+                message: "We konden dit event niet vinden.",
+                description: "Het event is mogelijk al verwijderd of gearchiveerd.",
+                action: "Ververs het overzicht en probeer opnieuw."
             });
         }
 

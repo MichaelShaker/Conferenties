@@ -2,15 +2,17 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 const { unsubscribeByToken } = require("../services/unsubscribeService");
+const { sendError } = require("../utils/apiError");
 
 async function register(req, res) {
     try {
         const { name, email, password } = req.body;
 
         if (!name || !email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "Name, email and password are required"
+            return sendError(res, 400, "ACCOUNT_REQUIRED_FIELDS", {
+                message: "Vul je naam, e-mailadres en wachtwoord in.",
+                description: "We hebben deze gegevens nodig om je account aan te maken.",
+                action: "Controleer het formulier en probeer opnieuw."
             });
         }
 
@@ -20,9 +22,10 @@ async function register(req, res) {
         );
 
         if (existingUsers.length > 0) {
-            return res.status(409).json({
-                success: false,
-                message: "Email is already in use"
+            return sendError(res, 409, "ACCOUNT_EMAIL_EXISTS", {
+                message: "Er bestaat al een account met dit e-mailadres.",
+                description: "Dit e-mailadres is al eerder geregistreerd.",
+                action: "Log in met dit e-mailadres of gebruik wachtwoord vergeten."
             });
         }
 
@@ -47,9 +50,10 @@ async function register(req, res) {
     } catch (error) {
         console.error("Register error:", error.message);
 
-        res.status(500).json({
-            success: false,
-            message: "Could not register user"
+        sendError(res, 500, "ACCOUNT_REGISTER_FAILED", {
+            message: "Account aanmaken is niet gelukt.",
+            description: "Er ging iets mis bij het opslaan van je account.",
+            action: "Probeer het later opnieuw. Blijft dit gebeuren, neem contact op met support."
         });
     }
 }
@@ -59,9 +63,10 @@ async function login(req, res) {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "Email and password are required"
+            return sendError(res, 400, "LOGIN_REQUIRED_FIELDS", {
+                message: "Vul je e-mailadres en wachtwoord in.",
+                description: "Beide velden zijn nodig om in te loggen.",
+                action: "Controleer het formulier en probeer opnieuw."
             });
         }
 
@@ -79,18 +84,20 @@ async function login(req, res) {
         const user = users[0];
 
         if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: "Invalid email or password"
+            return sendError(res, 401, "LOGIN_INVALID_CREDENTIALS", {
+                message: "E-mailadres of wachtwoord klopt niet.",
+                description: "We kunnen geen account vinden met deze combinatie.",
+                action: "Controleer je gegevens of gebruik wachtwoord vergeten."
             });
         }
 
         const passwordMatches = await bcrypt.compare(password, user.password);
 
         if (!passwordMatches) {
-            return res.status(401).json({
-                success: false,
-                message: "Invalid email or password"
+            return sendError(res, 401, "LOGIN_INVALID_CREDENTIALS", {
+                message: "E-mailadres of wachtwoord klopt niet.",
+                description: "We kunnen geen account vinden met deze combinatie.",
+                action: "Controleer je gegevens of gebruik wachtwoord vergeten."
             });
         }
 
@@ -122,9 +129,10 @@ async function login(req, res) {
     } catch (error) {
         console.error("Login error:", error.message);
 
-        res.status(500).json({
-            success: false,
-            message: "Could not login"
+        sendError(res, 500, "LOGIN_FAILED", {
+            message: "Inloggen lukt nu niet.",
+            description: "Er ging iets mis tijdens het inloggen.",
+            action: "Probeer het later opnieuw. Blijft dit gebeuren, geef de foutcode door aan support."
         });
     }
 }
@@ -134,18 +142,20 @@ async function unsubscribe(req, res) {
         const { token } = req.body;
 
         if (!token) {
-            return res.status(400).json({
-                success: false,
-                message: "Unsubscribe token is required"
+            return sendError(res, 400, "UNSUBSCRIBE_TOKEN_MISSING", {
+                message: "Deze afmeldlink is niet compleet.",
+                description: "De link mist informatie die nodig is om je af te melden.",
+                action: "Gebruik de volledige link uit de e-mail of pas je voorkeuren aan in je account."
             });
         }
 
         const updated = await unsubscribeByToken(token);
 
         if (!updated) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found"
+            return sendError(res, 404, "UNSUBSCRIBE_ACCOUNT_NOT_FOUND", {
+                message: "We konden dit account niet vinden.",
+                description: "De afmeldlink verwijst naar een account dat niet meer bestaat.",
+                action: "Log in en controleer je e-mailvoorkeuren in je account."
             });
         }
 
@@ -156,9 +166,10 @@ async function unsubscribe(req, res) {
     } catch (error) {
         console.error("Unsubscribe error:", error.message);
 
-        res.status(400).json({
-            success: false,
-            message: "Deze afmeldlink is ongeldig of verlopen."
+        sendError(res, 400, "UNSUBSCRIBE_TOKEN_INVALID", {
+            message: "Deze afmeldlink is ongeldig of verlopen.",
+            description: "Afmeldlinks zijn beveiligd en kunnen verlopen of ongeldig worden.",
+            action: "Log in en pas je e-mailvoorkeuren aan in je account."
         });
     }
 }
