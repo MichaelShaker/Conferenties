@@ -309,6 +309,15 @@ function formatTransportOption(option) {
     return option || "";
 }
 
+function formatSelectedDays(selectedDays) {
+    if (!selectedDays) return "Volledig event";
+
+    return String(selectedDays)
+        .split(",")
+        .map(day => `Dag ${day.trim()}`)
+        .join(", ");
+}
+
 function createSheetRows(registrations) {
     const headers = [
         "Registratie ID",
@@ -319,6 +328,8 @@ function createSheetRows(registrations) {
         "Telefoon",
         "Shirtmaat",
         "Vervoer",
+        "Gekozen dagen",
+        "Prijs",
         "Geboortedatum",
         "Kerk",
         "Kerk stad",
@@ -348,6 +359,8 @@ function createSheetRows(registrations) {
             registration.phone || "",
             registration.shirtSize || "",
             formatTransportOption(registration.transportOption),
+            formatSelectedDays(registration.selectedDays),
+            registration.selectedPrice ?? "",
             formatSheetDate(registration.birthDate),
             registration.churchName || "",
             registration.churchCity || "",

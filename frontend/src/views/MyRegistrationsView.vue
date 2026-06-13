@@ -69,7 +69,12 @@
 
             <div>
               <span>Prijs</span>
-              <strong>€{{ Number(registration.price).toFixed(2) }}</strong>
+              <strong>€{{ Number(registration.selectedPrice ?? registration.price).toFixed(2) }}</strong>
+            </div>
+
+            <div>
+              <span>Dagen</span>
+              <strong>{{ formatSelectedDays(registration.selectedDays) }}</strong>
             </div>
 
             <div>
@@ -146,6 +151,15 @@ function formatDateRange(startValue, endValue) {
   }
 
   return `${start} t/m ${formatDate(endValue)}`
+}
+
+function formatSelectedDays(value) {
+  if (!value) return 'Volledig event'
+
+  return String(value)
+      .split(',')
+      .map(day => `Dag ${day.trim()}`)
+      .join(', ')
 }
 
 onMounted(async () => {

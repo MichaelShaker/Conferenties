@@ -1,11 +1,26 @@
 const pool = require("../config/db");
 
+function optionalNumber(value) {
+    if (value === "" || value === null || value === undefined) return null;
+    return Number(value);
+}
+
+function booleanValue(value, fallback = false) {
+    if (value === "" || value === null || value === undefined) return fallback;
+    return value === true || value === 1 || value === "1" || value === "true";
+}
+
 async function getAllConferences() {
     const [rows] = await pool.query(`
         SELECT
             c.id, c.title, c.category, c.location, c.conference_date AS date,
             c.event_end_date AS dateEnd,
             c.description, c.image_url AS image, c.price, c.capacity, c.created_at,
+            COALESCE(c.max_event_days, 1) AS maxEventDays,
+            COALESCE(c.allow_partial_days, 0) AS allowPartialDays,
+            COALESCE(c.price_1_day, c.price) AS priceOneDay,
+            c.price_2_days AS priceTwoDays,
+            c.price_3_days AS priceThreeDays,
             c.event_type AS eventType, c.city, c.church_id AS churchId,
             c.min_age AS minAge, c.max_age AS maxAge,
             c.requires_church AS requiresChurch,
@@ -17,6 +32,12 @@ async function getAllConferences() {
             c.target_rank AS targetRank,
             c.payment_link AS paymentLink,
             c.payment_qr_url AS paymentQrUrl,
+            COALESCE(c.payment_link_1_day, c.payment_link) AS paymentLinkOneDay,
+            c.payment_link_2_days AS paymentLinkTwoDays,
+            c.payment_link_3_days AS paymentLinkThreeDays,
+            COALESCE(c.payment_qr_url_1_day, c.payment_qr_url) AS paymentQrUrlOneDay,
+            c.payment_qr_url_2_days AS paymentQrUrlTwoDays,
+            c.payment_qr_url_3_days AS paymentQrUrlThreeDays,
             c.payment_contact_name AS paymentContactName,
             c.payment_contact_phone AS paymentContactPhone,
             c.payment_instructions AS paymentInstructions,
@@ -48,6 +69,11 @@ async function getConferenceById(id) {
             c.id, c.title, c.category, c.location, c.conference_date AS date,
             c.event_end_date AS dateEnd,
             c.description, c.image_url AS image, c.price, c.capacity, c.created_at,
+            COALESCE(c.max_event_days, 1) AS maxEventDays,
+            COALESCE(c.allow_partial_days, 0) AS allowPartialDays,
+            COALESCE(c.price_1_day, c.price) AS priceOneDay,
+            c.price_2_days AS priceTwoDays,
+            c.price_3_days AS priceThreeDays,
             c.event_type AS eventType, c.city, c.church_id AS churchId,
             c.min_age AS minAge, c.max_age AS maxAge,
             c.requires_church AS requiresChurch,
@@ -59,6 +85,12 @@ async function getConferenceById(id) {
             c.target_rank AS targetRank,
             c.payment_link AS paymentLink,
             c.payment_qr_url AS paymentQrUrl,
+            COALESCE(c.payment_link_1_day, c.payment_link) AS paymentLinkOneDay,
+            c.payment_link_2_days AS paymentLinkTwoDays,
+            c.payment_link_3_days AS paymentLinkThreeDays,
+            COALESCE(c.payment_qr_url_1_day, c.payment_qr_url) AS paymentQrUrlOneDay,
+            c.payment_qr_url_2_days AS paymentQrUrlTwoDays,
+            c.payment_qr_url_3_days AS paymentQrUrlThreeDays,
             c.payment_contact_name AS paymentContactName,
             c.payment_contact_phone AS paymentContactPhone,
             c.payment_instructions AS paymentInstructions,
@@ -86,26 +118,38 @@ async function getConferenceById(id) {
 async function createConference(conference) {
     const {
         title, category, location, date, dateEnd, description, image, price, capacity,
+        maxEventDays, allowPartialDays, priceOneDay, priceTwoDays, priceThreeDays,
         eventType, city, churchId, minAge, maxAge,
         requiresChurch, requiresRank, requiresConfessionFather, requiresAllergies,
         targetChurchId, targetCity, targetRank,
-        paymentLink, paymentQrUrl, paymentContactName, paymentContactPhone, paymentInstructions,
+        paymentLink, paymentQrUrl, paymentLinkOneDay, paymentLinkTwoDays, paymentLinkThreeDays,
+        paymentQrUrlOneDay, paymentQrUrlTwoDays, paymentQrUrlThreeDays,
+        paymentContactName, paymentContactPhone, paymentInstructions,
         registrationDeadline, emailSubject, emailBody
     } = conference;
 
     const [result] = await pool.query(`
         INSERT INTO conferences
         (
-            title, category, location, conference_date, event_end_date, description, image_url, price, capacity,
+            title, category, location, conference_date, event_end_date, description, image_url, price,
+            max_event_days, allow_partial_days, price_1_day, price_2_days, price_3_days, capacity,
             event_type, city, church_id, min_age, max_age,
             requires_church, requires_rank, requires_confession_father, requires_allergies,
             target_church_id, target_city, target_rank,
-            payment_link, payment_qr_url, payment_contact_name, payment_contact_phone, payment_instructions,
+            payment_link, payment_qr_url, payment_link_1_day, payment_link_2_days, payment_link_3_days,
+            payment_qr_url_1_day, payment_qr_url_2_days, payment_qr_url_3_days,
+            payment_contact_name, payment_contact_phone, payment_instructions,
             registration_deadline, email_subject, email_body
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-        title, category, location, date, dateEnd || null, description, image, price, capacity,
+        title, category, location, date, dateEnd || null, description, image, price,
+        Math.min(3, Math.max(1, Number(maxEventDays || 1))),
+        booleanValue(allowPartialDays, false),
+        priceOneDay ?? price ?? 0,
+        optionalNumber(priceTwoDays),
+        optionalNumber(priceThreeDays),
+        capacity,
         eventType || "national",
         city || null,
         churchId || null,
@@ -118,8 +162,14 @@ async function createConference(conference) {
         targetChurchId || null,
         targetCity || null,
         targetRank || null,
-        paymentLink || null,
-        paymentQrUrl || null,
+        paymentLink || paymentLinkOneDay || null,
+        paymentQrUrl || paymentQrUrlOneDay || null,
+        paymentLinkOneDay || paymentLink || null,
+        paymentLinkTwoDays || null,
+        paymentLinkThreeDays || null,
+        paymentQrUrlOneDay || paymentQrUrl || null,
+        paymentQrUrlTwoDays || null,
+        paymentQrUrlThreeDays || null,
         paymentContactName || null,
         paymentContactPhone || null,
         paymentInstructions || null,
@@ -180,6 +230,9 @@ async function getApprovedUsersForConference(conferenceId) {
             r.registration_status AS registrationStatus,
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
+            r.selected_days AS selectedDays,
+            COALESCE(r.selected_day_count, 1) AS selectedDayCount,
+            COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
             r.payment_proof_uploaded_at AS paymentProofUploadedAt,
@@ -224,10 +277,13 @@ async function getApprovedUsersForConference(conferenceId) {
 async function updateConference(id, conference) {
     const {
         title, category, location, date, dateEnd, description, image, price, capacity,
+        maxEventDays, allowPartialDays, priceOneDay, priceTwoDays, priceThreeDays,
         eventType, city, churchId, minAge, maxAge,
         requiresChurch, requiresRank, requiresConfessionFather, requiresAllergies,
         targetChurchId, targetCity, targetRank,
-        paymentLink, paymentQrUrl, paymentContactName, paymentContactPhone, paymentInstructions,
+        paymentLink, paymentQrUrl, paymentLinkOneDay, paymentLinkTwoDays, paymentLinkThreeDays,
+        paymentQrUrlOneDay, paymentQrUrlTwoDays, paymentQrUrlThreeDays,
+        paymentContactName, paymentContactPhone, paymentInstructions,
         registrationDeadline, emailSubject, emailBody
     } = conference;
 
@@ -242,6 +298,11 @@ async function updateConference(id, conference) {
             description = ?,
             image_url = ?,
             price = ?,
+            max_event_days = ?,
+            allow_partial_days = ?,
+            price_1_day = ?,
+            price_2_days = ?,
+            price_3_days = ?,
             capacity = ?,
             event_type = ?,
             city = ?,
@@ -257,6 +318,12 @@ async function updateConference(id, conference) {
             target_rank = ?,
             payment_link = ?,
             payment_qr_url = ?,
+            payment_link_1_day = ?,
+            payment_link_2_days = ?,
+            payment_link_3_days = ?,
+            payment_qr_url_1_day = ?,
+            payment_qr_url_2_days = ?,
+            payment_qr_url_3_days = ?,
             payment_contact_name = ?,
             payment_contact_phone = ?,
             payment_instructions = ?,
@@ -273,6 +340,11 @@ async function updateConference(id, conference) {
         description || "",
         image || "",
         Number(price || 0),
+        Math.min(3, Math.max(1, Number(maxEventDays || 1))),
+        booleanValue(allowPartialDays, false),
+        priceOneDay ?? price ?? 0,
+        optionalNumber(priceTwoDays),
+        optionalNumber(priceThreeDays),
         Number(capacity || 100),
         eventType || "national",
         city || null,
@@ -286,8 +358,14 @@ async function updateConference(id, conference) {
         targetChurchId || null,
         targetCity || null,
         targetRank || null,
-        paymentLink || null,
-        paymentQrUrl || null,
+        paymentLink || paymentLinkOneDay || null,
+        paymentQrUrl || paymentQrUrlOneDay || null,
+        paymentLinkOneDay || paymentLink || null,
+        paymentLinkTwoDays || null,
+        paymentLinkThreeDays || null,
+        paymentQrUrlOneDay || paymentQrUrl || null,
+        paymentQrUrlTwoDays || null,
+        paymentQrUrlThreeDays || null,
         paymentContactName || null,
         paymentContactPhone || null,
         paymentInstructions || null,

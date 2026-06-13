@@ -24,7 +24,7 @@
         </h3>
 
         <span class="event-card__price">
-          €{{ Number(event.price).toFixed(2) }}
+          {{ priceLabel }}
         </span>
       </div>
 
@@ -119,6 +119,20 @@ const formattedDate = computed(() => {
 })
 
 const isAdmin = computed(() => authState.user?.role === 'admin')
+
+const canChoosePartialDays = computed(() => {
+  return Number(props.event.maxEventDays || 1) > 1
+      && (props.event.allowPartialDays === true || props.event.allowPartialDays === 1)
+})
+
+const priceLabel = computed(() => {
+  const prefix = canChoosePartialDays.value ? 'vanaf ' : ''
+  const price = canChoosePartialDays.value
+      ? props.event.priceOneDay ?? props.event.price ?? 0
+      : props.event.price ?? props.event.priceOneDay ?? 0
+
+  return `${prefix}€${Number(price).toFixed(2)}`
+})
 
 function isSameDate(first, second) {
   return first.toISOString().slice(0, 10) === second.toISOString().slice(0, 10)

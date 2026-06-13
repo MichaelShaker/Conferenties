@@ -20,7 +20,7 @@
         <div class="event-hero__meta">
           <span>{{ formattedDate }}</span>
           <span>{{ event.location }}</span>
-          <span>€{{ Number(event.price).toFixed(2) }}</span>
+          <span>{{ priceLabel }}</span>
           <span v-if="isAdmin">{{ event.registeredCount || 0 }} / {{ event.capacity }} plekken</span>
         </div>
       </div>
@@ -40,7 +40,7 @@
 
       <div>
         <span>Prijs</span>
-        <strong>€{{ Number(event.price).toFixed(2) }}</strong>
+        <strong>{{ priceLabel }}</strong>
       </div>
 
       <div v-if="isAdmin">
@@ -115,6 +115,63 @@
               Deze gegevens komen in de deelnemerslijst voor dit event en worden gebruikt voor planning op locatie.
             </p>
 
+            <div v-if="canChoosePartialDays" class="attendance-choice">
+              <div class="full-event-choice" :class="{ active: !showPartialDaySelector }">
+                <div>
+                  <span class="choice-label">Aanbevolen</span>
+                  <strong>Ik kom de hele periode</strong>
+                  <small>{{ fullEventText }}</small>
+                </div>
+
+                <div class="choice-price">
+                  €{{ Number(selectedPrice).toFixed(2) }}
+                </div>
+              </div>
+
+              <button
+                  v-if="showPartialDaySelector"
+                  type="button"
+                  class="choice-link"
+                  @click="selectFullEvent"
+              >
+                Toch hele periode kiezen
+              </button>
+
+              <button
+                  v-else
+                  type="button"
+                  class="choice-link"
+                  @click="startPartialDaySelection"
+              >
+                Ik kom alleen bepaalde dag(en)
+              </button>
+            </div>
+
+            <div v-if="canChoosePartialDays && showPartialDaySelector" class="day-choice-panel">
+              <div>
+                <strong>Kies je dag(en)</strong>
+                <span>Vink alleen de dagen aan waarop je aanwezig bent.</span>
+              </div>
+
+              <div class="day-choice-grid">
+                <button
+                    v-for="day in eventDays"
+                    :key="day.value"
+                    type="button"
+                    :class="{ active: selectedDays.includes(day.value) }"
+                    @click="toggleSelectedDay(day.value)"
+                >
+                  <strong>Dag {{ day.value }}</strong>
+                  <span>{{ day.label }}</span>
+                </button>
+              </div>
+
+              <p class="selected-price">
+                {{ selectedDays.length }} dag{{ selectedDays.length === 1 ? '' : 'en' }} gekozen ·
+                <strong>€{{ Number(selectedPrice).toFixed(2) }}</strong>
+              </p>
+            </div>
+
             <label for="shirtSize">Shirtmaat</label>
             <select id="shirtSize" v-model="shirtSize">
               <option value="">Kies je maat</option>
@@ -136,6 +193,14 @@
           </div>
 
           <div v-else class="registration-summary">
+            <div>
+              <span>Dagen</span>
+              <strong>{{ selectedDaysText }}</strong>
+            </div>
+            <div>
+              <span>Prijs</span>
+              <strong>€{{ Number(selectedPrice).toFixed(2) }}</strong>
+            </div>
             <div>
               <span>Shirtmaat</span>
               <strong>{{ shirtSize || '-' }}</strong>
@@ -172,20 +237,20 @@
           <h3>Betaling afronden</h3>
 
           <p>
-            Betaal via de Tikkie of QR-code. Upload daarna hier een screenshot van je betaling.
+            Betaal €{{ Number(selectedPrice).toFixed(2) }} voor {{ selectedDaysText }}. Upload daarna hier een screenshot van je betaling.
           </p>
 
           <a
-              v-if="event.paymentLink"
-              :href="event.paymentLink"
+              v-if="selectedPaymentLink"
+              :href="selectedPaymentLink"
               target="_blank"
               class="pay-button"
           >
             Open betaallink
           </a>
 
-          <div v-if="event.paymentQrUrl" class="qr-wrapper">
-            <img :src="event.paymentQrUrl" alt="Betaal QR-code" />
+          <div v-if="selectedPaymentQrUrl" class="qr-wrapper">
+            <img :src="selectedPaymentQrUrl" alt="Betaal QR-code" />
           </div>
 
           <div class="payment-contact">
@@ -263,10 +328,79 @@ const registrationStatus = ref('')
 const proofPreview = ref('')
 const shirtSize = ref('')
 const transportOption = ref('')
+const selectedDays = ref([1])
+const showPartialDaySelector = ref(false)
 
 const shirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 const isAdmin = computed(() => authState.user?.role === 'admin')
+
+const canChoosePartialDays = computed(() => {
+  return Number(event.value?.maxEventDays || 1) > 1
+      && (event.value?.allowPartialDays === true || event.value?.allowPartialDays === 1)
+})
+
+const eventDays = computed(() => {
+  const maxDays = Math.min(3, Math.max(1, Number(event.value?.maxEventDays || 1)))
+  const startDate = event.value?.date || event.value?.conference_date || event.value?.eventDate
+
+  return Array.from({ length: maxDays }, (_, index) => {
+    const value = index + 1
+    const date = startDate ? addDays(startDate, index) : null
+
+    return {
+      value,
+      label: date ? formatDate(date) : `Dag ${value}`
+    }
+  })
+})
+
+const fullEventDays = computed(() => eventDays.value.map(day => day.value))
+
+const selectedDaysText = computed(() => selectedDays.value
+    .slice()
+    .sort((a, b) => a - b)
+    .map(day => {
+      const eventDay = eventDays.value.find(option => option.value === day)
+      return eventDay ? `Dag ${day} (${eventDay.label})` : `Dag ${day}`
+    })
+    .join(', '))
+
+const fullEventText = computed(() => {
+  if (!eventDays.value.length) return 'Volledig event'
+
+  return eventDays.value.map(day => day.label).join(' t/m ')
+})
+
+const selectedPrice = computed(() => {
+  const count = selectedDays.value.length || 1
+
+  if (count === 3 && event.value?.priceThreeDays !== null && event.value?.priceThreeDays !== undefined) {
+    return Number(event.value.priceThreeDays)
+  }
+
+  if (count === 2 && event.value?.priceTwoDays !== null && event.value?.priceTwoDays !== undefined) {
+    return Number(event.value.priceTwoDays)
+  }
+
+  return Number(event.value?.priceOneDay ?? event.value?.price ?? 0) * count
+})
+
+const priceLabel = computed(() => `€${Number(selectedPrice.value).toFixed(2)}`)
+
+const selectedPaymentLink = computed(() => {
+  const count = selectedDays.value.length || 1
+  if (count === 3) return event.value?.paymentLinkThreeDays || event.value?.paymentLink || ''
+  if (count === 2) return event.value?.paymentLinkTwoDays || event.value?.paymentLink || ''
+  return event.value?.paymentLinkOneDay || event.value?.paymentLink || ''
+})
+
+const selectedPaymentQrUrl = computed(() => {
+  const count = selectedDays.value.length || 1
+  if (count === 3) return event.value?.paymentQrUrlThreeDays || event.value?.paymentQrUrl || ''
+  if (count === 2) return event.value?.paymentQrUrlTwoDays || event.value?.paymentQrUrl || ''
+  return event.value?.paymentQrUrlOneDay || event.value?.paymentQrUrl || ''
+})
 
 const formattedDate = computed(() => {
   const startDate = event.value?.date || event.value?.conference_date || event.value?.eventDate
@@ -326,6 +460,7 @@ const registrationClosed = computed(() => {
 onMounted(async () => {
   try {
     event.value = await fetchConferenceById(route.params.id)
+    setDefaultSelectedDays()
 
     if (authState.token) {
       await loadProfileDefaults()
@@ -360,6 +495,7 @@ async function checkExistingRegistration() {
   registrationStatus.value = existingRegistration.registrationStatus
   shirtSize.value = existingRegistration.shirtSize || ''
   transportOption.value = existingRegistration.transportOption || ''
+  selectedDays.value = parseSelectedDays(existingRegistration.selectedDays)
 }
 
 async function handleRegister() {
@@ -376,9 +512,14 @@ async function handleRegister() {
       throw new Error('Kies je shirtmaat en vervoer voordat je inschrijft.')
     }
 
+    if (selectedDays.value.length === 0) {
+      throw new Error('Kies minimaal één dag waarop je aanwezig bent.')
+    }
+
     const result = await createRegistration(event.value.id, {
       shirtSize: shirtSize.value,
-      transportOption: transportOption.value
+      transportOption: transportOption.value,
+      selectedDays: selectedDays.value
     })
 
     registrationId.value = result.data.id
@@ -394,6 +535,49 @@ async function handleRegister() {
   } finally {
     loading.value = false
   }
+}
+
+function setDefaultSelectedDays() {
+  selectedDays.value = fullEventDays.value
+  showPartialDaySelector.value = false
+}
+
+function startPartialDaySelection() {
+  showPartialDaySelector.value = true
+  selectedDays.value = selectedDays.value.length === fullEventDays.value.length ? [1] : (selectedDays.value.length ? selectedDays.value : [1])
+}
+
+function selectFullEvent() {
+  showPartialDaySelector.value = false
+  selectedDays.value = fullEventDays.value
+}
+
+function toggleSelectedDay(day) {
+  if (!canChoosePartialDays.value) return
+
+  if (selectedDays.value.includes(day)) {
+    selectedDays.value = selectedDays.value.filter(selectedDay => selectedDay !== day)
+    return
+  }
+
+  selectedDays.value = [...selectedDays.value, day].sort((a, b) => a - b)
+}
+
+function parseSelectedDays(value) {
+  if (!value) return canChoosePartialDays.value ? [1] : fullEventDays.value
+
+  const days = String(value)
+      .split(',')
+      .map(day => Number(day))
+      .filter(day => Number.isInteger(day) && day >= 1 && day <= 3)
+
+  return days.length ? days : (canChoosePartialDays.value ? [1] : fullEventDays.value)
+}
+
+function addDays(value, amount) {
+  const date = new Date(value)
+  date.setDate(date.getDate() + amount)
+  return date
 }
 
 function transportOptionText(option) {
@@ -712,6 +896,118 @@ async function handlePaymentProofChange(eventInput) {
 .registration-options select:focus {
   outline: 3px solid rgba(37, 99, 235, 0.18);
   border-color: #2563eb;
+}
+
+.attendance-choice {
+  display: grid;
+  gap: 10px;
+}
+
+.full-event-choice {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+}
+
+.full-event-choice strong,
+.full-event-choice small,
+.choice-label {
+  display: block;
+}
+
+.full-event-choice strong {
+  color: #0f172a;
+}
+
+.full-event-choice small {
+  margin-top: 4px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.choice-label {
+  margin-bottom: 6px;
+  color: #2563eb;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.choice-price {
+  flex: 0 0 auto;
+  color: #0f172a;
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.choice-link {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #2563eb;
+  font-weight: 900;
+  text-align: center;
+}
+
+.choice-link:hover {
+  background: #f8fafc;
+}
+
+.day-choice-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #dbe3ee;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.day-choice-panel strong {
+  color: #0f172a;
+}
+
+.day-choice-panel span {
+  display: block;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.day-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.day-choice-grid button {
+  display: grid;
+  gap: 4px;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid #dbe3ee;
+  border-radius: 14px;
+  background: #ffffff;
+  text-align: left;
+  transition: 0.2s ease;
+}
+
+.day-choice-grid button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.selected-price {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  color: #334155 !important;
 }
 
 .registration-summary div {

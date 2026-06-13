@@ -185,6 +185,7 @@
                 <th>Telefoon</th>
                 <th>Shirtmaat</th>
                 <th>Vervoer</th>
+                <th>Dagen</th>
                 <th>Kerk</th>
                 <th>Status</th>
                 <th>Op locatie</th>
@@ -198,6 +199,7 @@
                 <td>{{ registration.userPhone || '-' }}</td>
                 <td>{{ registration.shirtSize || '-' }}</td>
                 <td>{{ transportOptionText(registration.transportOption) }}</td>
+                <td>{{ formatSelectedDays(registration.selectedDays) }}</td>
                 <td>{{ registration.churchName || '-' }}</td>
                 <td>{{ registrationStatusText(registration.registrationStatus) }}</td>
                 <td>{{ isApprovedRegistration(registration) ? 'Ja' : 'Nee' }}</td>
@@ -244,6 +246,8 @@
               <th>Event</th>
               <th>Datum</th>
               <th>Extra</th>
+              <th>Dagen</th>
+              <th>Prijs</th>
               <th>Betaalmethode</th>
               <th>Betaalstatus</th>
               <th>Registratie</th>
@@ -274,6 +278,9 @@
                   <span>{{ transportOptionText(registration.transportOption) }}</span>
                 </div>
               </td>
+
+              <td>{{ formatSelectedDays(registration.selectedDays) }}</td>
+              <td>€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</td>
 
               <td>
                 <select
@@ -698,6 +705,15 @@ function transportOptionText(option) {
   if (option === 'bus') return 'Bus'
 
   return '-'
+}
+
+function formatSelectedDays(value) {
+  if (!value) return 'Volledig event'
+
+  return String(value)
+      .split(',')
+      .map(day => `Dag ${day.trim()}`)
+      .join(', ')
 }
 
 function isApprovedRegistration(registration) {

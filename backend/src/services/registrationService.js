@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 
 async function createRegistration(userId, conferenceId, registrationDetails = {}) {
-    const { shirtSize, transportOption } = registrationDetails;
+    const { shirtSize, transportOption, selectedDays } = registrationDetails;
 
     const [userRows] = await pool.query(`
         SELECT id
@@ -20,7 +20,16 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
     }
 
     const [conferenceRows] = await pool.query(`
-        SELECT id, title, capacity, registration_deadline AS registrationDeadline
+        SELECT
+            id,
+            title,
+            capacity,
+            registration_deadline AS registrationDeadline,
+            COALESCE(max_event_days, 1) AS maxEventDays,
+            COALESCE(allow_partial_days, 0) AS allowPartialDays,
+            COALESCE(price_1_day, price) AS priceOneDay,
+            price_2_days AS priceTwoDays,
+            price_3_days AS priceThreeDays
         FROM conferences
         WHERE id = ?
     `, [conferenceId]);
@@ -86,17 +95,68 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
         };
     }
 
+    const normalizedSelectedDays = conference.allowPartialDays
+        ? normalizeSelectedDays(selectedDays, conference.maxEventDays)
+        : getAllEventDays(conference.maxEventDays);
+
+    if (normalizedSelectedDays.length === 0) {
+        return {
+            error: "Kies minimaal één dag waarop je aanwezig bent.",
+            status: 400,
+            code: "REGISTRATION_DAYS_REQUIRED",
+            description: "Voor dit event moet je aangeven op welke dag of dagen je komt.",
+            action: "Vink één of meer dagen aan en probeer opnieuw."
+        };
+    }
+
+    const selectedDayCount = normalizedSelectedDays.length;
+    const selectedPrice = getPriceForDayCount(conference, selectedDayCount);
+
     const [result] = await pool.query(`
-        INSERT INTO registrations (user_id, conference_id, shirt_size, transport_option)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO registrations (
+            user_id, conference_id, shirt_size, transport_option,
+            selected_days, selected_day_count, selected_price
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [
         userId,
         conferenceId,
         shirtSize || null,
-        transportOption || null
+        transportOption || null,
+        normalizedSelectedDays.join(","),
+        selectedDayCount,
+        selectedPrice
     ]);
 
     return { id: result.insertId };
+}
+
+function normalizeSelectedDays(selectedDays, maxEventDays = 1) {
+    const maxDays = Math.min(3, Math.max(1, Number(maxEventDays || 1)));
+    const values = Array.isArray(selectedDays) ? selectedDays : [];
+
+    return [...new Set(values
+        .map(value => Number(value))
+        .filter(value => Number.isInteger(value) && value >= 1 && value <= maxDays))]
+        .sort((a, b) => a - b);
+}
+
+function getAllEventDays(maxEventDays = 1) {
+    const maxDays = Math.min(3, Math.max(1, Number(maxEventDays || 1)));
+
+    return Array.from({ length: maxDays }, (_, index) => index + 1);
+}
+
+function getPriceForDayCount(conference, dayCount) {
+    if (dayCount === 3 && conference.priceThreeDays !== null && conference.priceThreeDays !== undefined) {
+        return Number(conference.priceThreeDays);
+    }
+
+    if (dayCount === 2 && conference.priceTwoDays !== null && conference.priceTwoDays !== undefined) {
+        return Number(conference.priceTwoDays);
+    }
+
+    return Number(conference.priceOneDay || 0) * dayCount;
 }
 
 async function getMyRegistrations(userId) {
@@ -108,6 +168,9 @@ async function getMyRegistrations(userId) {
             r.registration_status AS registrationStatus,
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
+            r.selected_days AS selectedDays,
+            COALESCE(r.selected_day_count, 1) AS selectedDayCount,
+            COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
             r.created_at,
@@ -138,6 +201,9 @@ async function getAllRegistrations() {
             r.registration_status AS registrationStatus,
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
+            r.selected_days AS selectedDays,
+            COALESCE(r.selected_day_count, 1) AS selectedDayCount,
+            COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
             r.created_at,

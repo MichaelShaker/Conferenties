@@ -23,6 +23,17 @@ CREATE TABLE conferences (
                              description TEXT,
                              image_url VARCHAR(500),
                              price DECIMAL(10,2) DEFAULT 0.00,
+                             max_event_days INT DEFAULT 1,
+                             allow_partial_days TINYINT(1) DEFAULT 0,
+                             price_1_day DECIMAL(10,2) NULL,
+                             price_2_days DECIMAL(10,2) NULL,
+                             price_3_days DECIMAL(10,2) NULL,
+                             payment_link_1_day VARCHAR(500) NULL,
+                             payment_link_2_days VARCHAR(500) NULL,
+                             payment_link_3_days VARCHAR(500) NULL,
+                             payment_qr_url_1_day LONGTEXT NULL,
+                             payment_qr_url_2_days LONGTEXT NULL,
+                             payment_qr_url_3_days LONGTEXT NULL,
                              capacity INT DEFAULT 100,
                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -34,6 +45,9 @@ CREATE TABLE registrations (
                                payment_status VARCHAR(50) DEFAULT 'pending',
                                registration_status VARCHAR(50) DEFAULT 'pending',
                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                               selected_days VARCHAR(50),
+                               selected_day_count INT DEFAULT 1,
+                               selected_price DECIMAL(10,2) NULL,
                                UNIQUE KEY unique_registration (user_id, conference_id),
                                CONSTRAINT fk_reg_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                                CONSTRAINT fk_reg_conference FOREIGN KEY (conference_id) REFERENCES conferences(id) ON DELETE CASCADE

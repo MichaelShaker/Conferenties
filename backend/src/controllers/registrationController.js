@@ -310,7 +310,7 @@ async function sendRegistrationResendEmail({ registration, actorUserId }) {
 async function registerForConference(req, res) {
     try {
         const userId = req.user.id;
-        const { conferenceId, shirtSize, transportOption } = req.body;
+        const { conferenceId, shirtSize, transportOption, selectedDays } = req.body;
 
         if (!conferenceId) {
             return sendError(res, 400, "REGISTRATION_EVENT_REQUIRED", {
@@ -322,7 +322,8 @@ async function registerForConference(req, res) {
 
         const result = await registrationService.createRegistration(userId, conferenceId, {
             shirtSize,
-            transportOption
+            transportOption,
+            selectedDays
         });
 
         if (result.error) {

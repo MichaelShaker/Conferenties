@@ -72,8 +72,17 @@
             </label>
 
             <label class="field">
-              <span>Prijs</span>
-              <input v-model="form.price" type="number" step="0.01" min="0" required />
+              <span>Aantal eventdagen</span>
+              <select v-model.number="form.maxEventDays">
+                <option :value="1">1 dag</option>
+                <option :value="2">2 dagen</option>
+                <option :value="3">3 dagen</option>
+              </select>
+            </label>
+
+            <label class="field checkbox-field">
+              <input v-model="form.allowPartialDays" type="checkbox" />
+              <span>Deelnemers mogen losse dagen kiezen</span>
             </label>
 
             <label class="field">
@@ -233,17 +242,12 @@
           <div class="panel-heading">
             <span>4</span>
             <div>
-              <h2>Hoe betalen ze?</h2>
-              <p>Tikkie, QR-code en contactpersoon.</p>
+              <h2>Prijs en betaling</h2>
+              <p>Maak de prijs en betaalmethode per dagkeuze duidelijk.</p>
             </div>
           </div>
 
           <div class="field-grid">
-            <label class="field wide">
-              <span>Betaallink</span>
-              <input v-model="form.paymentLink" type="url" placeholder="https://..." />
-            </label>
-
             <label class="field">
               <span>Contactpersoon</span>
               <input v-model="form.paymentContactName" type="text" placeholder="Naam" />
@@ -254,13 +258,37 @@
               <input v-model="form.paymentContactPhone" type="text" placeholder="+31..." />
             </label>
 
-            <label class="field wide">
-              <span>QR-code</span>
-              <input type="file" accept="image/*" @change="handleQrChange" />
-            </label>
-          </div>
+            <template v-for="option in paymentDayOptions" :key="option.count">
+              <div class="payment-option-editor wide">
+                <div>
+                  <strong>{{ option.label }}</strong>
+                  <span>{{ option.caption }}</span>
+                </div>
 
-          <img v-if="qrPreview" :src="qrPreview" alt="QR-code voorbeeld" class="qr-preview" />
+                <label class="field">
+                  <span>Prijs</span>
+                  <input v-model="form[option.priceField]" type="number" step="0.01" min="0" />
+                </label>
+
+                <label class="field">
+                  <span>Tikkie-link</span>
+                  <input v-model="form[option.linkField]" type="url" placeholder="https://..." />
+                </label>
+
+                <label class="field">
+                  <span>QR-code</span>
+                  <input type="file" accept="image/*" @change="handlePaymentQrChange($event, option.count)" />
+                </label>
+
+                <img
+                    v-if="paymentQrPreview[option.count]"
+                    :src="paymentQrPreview[option.count]"
+                    :alt="`${option.label} QR-code`"
+                    class="qr-preview"
+                />
+              </div>
+            </template>
+          </div>
 
           <label class="field">
             <span>Betaalinstructies</span>
@@ -296,7 +324,7 @@
 
             <div>
               <span>Prijs</span>
-              <strong>€{{ Number(form.price || 0).toFixed(2) }}</strong>
+              <strong>{{ paymentSummaryText }}</strong>
               <small>{{ form.capacity || 0 }} plekken</small>
             </div>
 
@@ -376,7 +404,7 @@
               </div>
               <div>
                 <dt>Prijs</dt>
-                <dd>€{{ Number(form.price || 0).toFixed(2) }}</dd>
+                <dd>{{ paymentSummaryText }}</dd>
               </div>
               <div>
                 <dt>Plekken</dt>
@@ -426,7 +454,7 @@
               </span>
               <span v-else>Iedereen</span>
             </td>
-            <td>€{{ Number(event.price).toFixed(2) }}</td>
+            <td>{{ eventPriceSummary(event) }}</td>
             <td>{{ event.registeredCount || 0 }} / {{ event.capacity }}</td>
             <td>
               <div class="table-actions">
@@ -488,7 +516,11 @@ const loading = ref(false)
 const events = ref([])
 const churches = ref([])
 const imagePreview = ref('')
-const qrPreview = ref('')
+const paymentQrPreview = reactive({
+  1: '',
+  2: '',
+  3: ''
+})
 const editingEventId = ref(null)
 const activeEventStep = ref(0)
 
@@ -497,7 +529,7 @@ const eventSteps = [
     title: 'Basis',
     caption: 'Naam en datum',
     help: 'Leg eerst de kern vast: wat, waar, wanneer en hoeveel plekken.',
-    requiredFields: ['title', 'category', 'date', 'location', 'price', 'capacity']
+    requiredFields: ['title', 'category', 'date', 'location', 'capacity']
   },
   {
     title: 'Presentatie',
@@ -527,6 +559,30 @@ const eventSteps = [
 
 const currentEventStep = computed(() => eventSteps[activeEventStep.value])
 
+const paymentDayOptions = computed(() => {
+  const maxDays = Math.min(3, Math.max(1, Number(form.maxEventDays || 1)))
+  const counts = form.allowPartialDays
+      ? Array.from({ length: maxDays }, (_, index) => index + 1)
+      : [maxDays]
+
+  return counts.map(count => ({
+    count,
+    label: form.allowPartialDays
+        ? `${count} gekozen dag${count > 1 ? 'en' : ''}`
+        : `Volledig event (${count} dag${count > 1 ? 'en' : ''})`,
+    caption: form.allowPartialDays
+        ? partialPaymentCaption(count)
+        : 'Iedereen schrijft zich in voor alle dagen van dit event.',
+    priceField: priceFieldForDayCount(count),
+    linkField: linkFieldForDayCount(count),
+    qrField: qrFieldForDayCount(count)
+  }))
+})
+
+const paymentSummaryText = computed(() => paymentDayOptions.value
+    .map(option => `${option.count} dag${option.count > 1 ? 'en' : ''}: €${Number(paymentOptionPrice(option)).toFixed(2)}`)
+    .join(' · '))
+
 const form = reactive({
   title: '',
   category: '',
@@ -534,6 +590,11 @@ const form = reactive({
   dateEnd: '',
   location: '',
   price: 0,
+  maxEventDays: 1,
+  allowPartialDays: false,
+  priceOneDay: 0,
+  priceTwoDays: '',
+  priceThreeDays: '',
   capacity: 100,
   image: '',
   imageFocusX: 50,
@@ -555,6 +616,12 @@ const form = reactive({
 
   paymentLink: '',
   paymentQrUrl: '',
+  paymentLinkOneDay: '',
+  paymentLinkTwoDays: '',
+  paymentLinkThreeDays: '',
+  paymentQrUrlOneDay: '',
+  paymentQrUrlTwoDays: '',
+  paymentQrUrlThreeDays: '',
   paymentContactName: '',
   paymentContactPhone: '',
   paymentInstructions: '',
@@ -562,6 +629,40 @@ const form = reactive({
   emailSubject: '',
   emailBody: ''
 })
+
+function priceFieldForDayCount(count) {
+  if (count === 3) return 'priceThreeDays'
+  if (count === 2) return 'priceTwoDays'
+  return 'priceOneDay'
+}
+
+function linkFieldForDayCount(count) {
+  if (count === 3) return 'paymentLinkThreeDays'
+  if (count === 2) return 'paymentLinkTwoDays'
+  return 'paymentLinkOneDay'
+}
+
+function qrFieldForDayCount(count) {
+  if (count === 3) return 'paymentQrUrlThreeDays'
+  if (count === 2) return 'paymentQrUrlTwoDays'
+  return 'paymentQrUrlOneDay'
+}
+
+function partialPaymentCaption(count) {
+  if (count === 1) return 'Bijvoorbeeld alleen dag 1 of alleen dag 2.'
+  if (count === 2) return 'Bijvoorbeeld dag 1 + dag 3.'
+  return 'Alle dagen van het event.'
+}
+
+function paymentOptionPrice(option) {
+  const value = form[option.priceField]
+
+  if (value !== '' && value !== null && value !== undefined) {
+    return Number(value || 0)
+  }
+
+  return Number(form.priceOneDay || form.price || 0) * option.count
+}
 
 function formatDate(date) {
   if (!date) return '-'
@@ -650,19 +751,20 @@ async function handleImageChange(event) {
   form.imageFocusY = 50
 }
 
-async function handleQrChange(event) {
+async function handlePaymentQrChange(event, dayCount) {
   const file = event.target.files[0]
+  const qrField = qrFieldForDayCount(dayCount)
 
   if (!file) {
-    form.paymentQrUrl = ''
-    qrPreview.value = ''
+    form[qrField] = ''
+    paymentQrPreview[dayCount] = ''
     return
   }
 
   const compressedQr = await compressImage(file, 400, 0.65)
 
-  form.paymentQrUrl = compressedQr
-  qrPreview.value = compressedQr
+  form[qrField] = compressedQr
+  paymentQrPreview[dayCount] = compressedQr
 }
 
 function setImageFocus(event) {
@@ -682,6 +784,11 @@ function resetForm() {
   form.dateEnd = ''
   form.location = ''
   form.price = 0
+  form.maxEventDays = 1
+  form.allowPartialDays = false
+  form.priceOneDay = 0
+  form.priceTwoDays = ''
+  form.priceThreeDays = ''
   form.capacity = 100
   form.image = ''
   form.imageFocusX = 50
@@ -703,6 +810,12 @@ function resetForm() {
 
   form.paymentLink = ''
   form.paymentQrUrl = ''
+  form.paymentLinkOneDay = ''
+  form.paymentLinkTwoDays = ''
+  form.paymentLinkThreeDays = ''
+  form.paymentQrUrlOneDay = ''
+  form.paymentQrUrlTwoDays = ''
+  form.paymentQrUrlThreeDays = ''
   form.paymentContactName = ''
   form.paymentContactPhone = ''
   form.paymentInstructions = ''
@@ -713,7 +826,9 @@ function resetForm() {
   activeEventStep.value = 0
 
   imagePreview.value = ''
-  qrPreview.value = ''
+  paymentQrPreview[1] = ''
+  paymentQrPreview[2] = ''
+  paymentQrPreview[3] = ''
 }
 
 function normalizeDateInput(value) {
@@ -730,6 +845,11 @@ function startEdit(event) {
   form.dateEnd = normalizeDateInput(event.dateEnd)
   form.location = event.location || ''
   form.price = Number(event.price || 0)
+  form.maxEventDays = Number(event.maxEventDays || 1)
+  form.allowPartialDays = event.allowPartialDays === true || event.allowPartialDays === 1
+  form.priceOneDay = Number(event.priceOneDay ?? event.price ?? 0)
+  form.priceTwoDays = event.priceTwoDays ?? ''
+  form.priceThreeDays = event.priceThreeDays ?? ''
   form.capacity = Number(event.capacity || 100)
   form.image = event.image || ''
   form.description = event.description || ''
@@ -749,6 +869,12 @@ function startEdit(event) {
 
   form.paymentLink = event.paymentLink || ''
   form.paymentQrUrl = event.paymentQrUrl || ''
+  form.paymentLinkOneDay = event.paymentLinkOneDay || event.paymentLink || ''
+  form.paymentLinkTwoDays = event.paymentLinkTwoDays || ''
+  form.paymentLinkThreeDays = event.paymentLinkThreeDays || ''
+  form.paymentQrUrlOneDay = event.paymentQrUrlOneDay || event.paymentQrUrl || ''
+  form.paymentQrUrlTwoDays = event.paymentQrUrlTwoDays || ''
+  form.paymentQrUrlThreeDays = event.paymentQrUrlThreeDays || ''
   form.paymentContactName = event.paymentContactName || ''
   form.paymentContactPhone = event.paymentContactPhone || ''
   form.paymentInstructions = event.paymentInstructions || ''
@@ -757,7 +883,9 @@ function startEdit(event) {
   form.emailBody = event.emailBody || ''
 
   imagePreview.value = form.image
-  qrPreview.value = form.paymentQrUrl
+  paymentQrPreview[1] = form.paymentQrUrlOneDay
+  paymentQrPreview[2] = form.paymentQrUrlTwoDays
+  paymentQrPreview[3] = form.paymentQrUrlThreeDays
   activeEventStep.value = 0
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -832,9 +960,20 @@ async function handleSubmitEvent() {
   message.value = ''
 
   try {
+    const fullEventPriceField = priceFieldForDayCount(form.maxEventDays)
+    const fullEventLinkField = linkFieldForDayCount(form.maxEventDays)
+    const fullEventQrField = qrFieldForDayCount(form.maxEventDays)
+
     const payload = {
       ...form,
-      price: Number(form.price || 0),
+      price: Number((form.allowPartialDays ? form.priceOneDay : form[fullEventPriceField]) || form.price || 0),
+      maxEventDays: Math.min(3, Math.max(1, Number(form.maxEventDays || 1))),
+      allowPartialDays: !!form.allowPartialDays,
+      priceOneDay: Number(form.priceOneDay || form.price || 0),
+      priceTwoDays: form.priceTwoDays === '' ? null : Number(form.priceTwoDays || 0),
+      priceThreeDays: form.priceThreeDays === '' ? null : Number(form.priceThreeDays || 0),
+      paymentLink: form[fullEventLinkField] || form.paymentLinkOneDay || form.paymentLink || '',
+      paymentQrUrl: form[fullEventQrField] || form.paymentQrUrlOneDay || form.paymentQrUrl || '',
       capacity: Number(form.capacity || 100),
       churchId: form.churchId ? Number(form.churchId) : null,
       targetChurchId: form.targetChurchId ? Number(form.targetChurchId) : null,
@@ -874,6 +1013,27 @@ async function handleSubmitEvent() {
   } finally {
     loading.value = false
   }
+}
+
+function eventPriceSummary(event) {
+  const maxDays = Math.min(3, Math.max(1, Number(event.maxEventDays || 1)))
+  const allowPartialDays = event.allowPartialDays === true || event.allowPartialDays === 1
+
+  if (allowPartialDays && maxDays > 1) {
+    return `vanaf €${Number(event.priceOneDay ?? event.price ?? 0).toFixed(2)}`
+  }
+
+  let price = event.priceOneDay ?? event.price ?? 0
+
+  if (maxDays === 3 && event.priceThreeDays !== null && event.priceThreeDays !== undefined) {
+    price = event.priceThreeDays
+  } else if (maxDays === 2 && event.priceTwoDays !== null && event.priceTwoDays !== undefined) {
+    price = event.priceTwoDays
+  } else {
+    price = event.price ?? price
+  }
+
+  return `€${Number(price).toFixed(2)}`
 }
 
 async function resendEventMail(event) {
@@ -1226,6 +1386,20 @@ td .table-actions .action-btn--sheet:hover {
   grid-column: 1 / -1;
 }
 
+.checkbox-field {
+  align-items: center;
+  grid-template-columns: auto 1fr;
+  padding: 12px 13px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.checkbox-field input {
+  width: 18px;
+  min-height: 18px;
+}
+
 .field span {
   color: #334155;
   font-size: 0.86rem;
@@ -1339,6 +1513,34 @@ textarea:focus {
 .checkbox-group input {
   width: 18px;
   min-height: 18px;
+}
+
+.payment-option-editor {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1.1fr repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.payment-option-editor > div:first-child {
+  display: grid;
+  gap: 4px;
+  align-self: center;
+}
+
+.payment-option-editor strong {
+  color: #0f172a;
+}
+
+.payment-option-editor > div:first-child span {
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .qr-preview {
@@ -1639,6 +1841,7 @@ td strong {
 
   .field-grid,
   .checkbox-group,
+  .payment-option-editor,
   .review-grid {
     grid-template-columns: 1fr;
   }

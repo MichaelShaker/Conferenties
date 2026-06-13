@@ -143,6 +143,11 @@ async function createConference(req, res) {
             description,
             image,
             price,
+            maxEventDays,
+            allowPartialDays,
+            priceOneDay,
+            priceTwoDays,
+            priceThreeDays,
             capacity,
 
             eventType,
@@ -160,6 +165,12 @@ async function createConference(req, res) {
 
             paymentLink,
             paymentQrUrl,
+            paymentLinkOneDay,
+            paymentLinkTwoDays,
+            paymentLinkThreeDays,
+            paymentQrUrlOneDay,
+            paymentQrUrlTwoDays,
+            paymentQrUrlThreeDays,
             paymentContactName,
             paymentContactPhone,
             paymentInstructions,
@@ -193,6 +204,11 @@ async function createConference(req, res) {
             description: description || "",
             image: image || "",
             price: Number(price || 0),
+            maxEventDays,
+            allowPartialDays,
+            priceOneDay,
+            priceTwoDays,
+            priceThreeDays,
             capacity: Number(capacity || 100),
 
             eventType: eventType || "national",
@@ -210,6 +226,12 @@ async function createConference(req, res) {
 
             paymentLink: paymentLink || null,
             paymentQrUrl: paymentQrUrl || null,
+            paymentLinkOneDay,
+            paymentLinkTwoDays,
+            paymentLinkThreeDays,
+            paymentQrUrlOneDay,
+            paymentQrUrlTwoDays,
+            paymentQrUrlThreeDays,
             paymentContactName: paymentContactName || null,
             paymentContactPhone: paymentContactPhone || null,
             paymentInstructions: paymentInstructions || null,
@@ -366,6 +388,15 @@ function formatTransportOption(option) {
     return option || "";
 }
 
+function formatSelectedDays(selectedDays) {
+    if (!selectedDays) return "Volledig event";
+
+    return String(selectedDays)
+        .split(",")
+        .map(day => `Dag ${day.trim()}`)
+        .join(", ");
+}
+
 async function exportApprovedUsersCsv(req, res) {
     try {
         const { id } = req.params;
@@ -400,6 +431,8 @@ async function exportApprovedUsersCsv(req, res) {
             "Telefoon",
             "Shirtmaat",
             "Vervoer",
+            "Gekozen dagen",
+            "Prijs",
             "Geboortedatum",
             "Kerk",
             "Kerk stad",
@@ -429,6 +462,8 @@ async function exportApprovedUsersCsv(req, res) {
             user.phone,
             user.shirtSize,
             formatTransportOption(user.transportOption),
+            formatSelectedDays(user.selectedDays),
+            user.selectedPrice,
             formatCsvDate(user.birthDate),
             user.churchName,
             user.churchCity,

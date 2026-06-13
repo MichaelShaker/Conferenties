@@ -32,12 +32,26 @@ async function ensureAppSchema() {
     await addColumnIfMissing("user_profiles", "shirt_size", "VARCHAR(20) NULL");
     await addColumnIfMissing("user_profiles", "transport_option", "VARCHAR(50) NULL");
     await addColumnIfMissing("conferences", "event_end_date", "DATE NULL");
+    await addColumnIfMissing("conferences", "max_event_days", "INT DEFAULT 1");
+    await addColumnIfMissing("conferences", "allow_partial_days", "TINYINT(1) DEFAULT 0");
+    await addColumnIfMissing("conferences", "price_1_day", "DECIMAL(10,2) NULL");
+    await addColumnIfMissing("conferences", "price_2_days", "DECIMAL(10,2) NULL");
+    await addColumnIfMissing("conferences", "price_3_days", "DECIMAL(10,2) NULL");
+    await addColumnIfMissing("conferences", "payment_link_1_day", "VARCHAR(500) NULL");
+    await addColumnIfMissing("conferences", "payment_link_2_days", "VARCHAR(500) NULL");
+    await addColumnIfMissing("conferences", "payment_link_3_days", "VARCHAR(500) NULL");
+    await addColumnIfMissing("conferences", "payment_qr_url_1_day", "LONGTEXT NULL");
+    await addColumnIfMissing("conferences", "payment_qr_url_2_days", "LONGTEXT NULL");
+    await addColumnIfMissing("conferences", "payment_qr_url_3_days", "LONGTEXT NULL");
     await addColumnIfMissing("conferences", "registration_deadline", "DATE NULL");
     await addColumnIfMissing("conferences", "email_subject", "VARCHAR(255) NULL");
     await addColumnIfMissing("conferences", "email_body", "TEXT NULL");
     await addColumnIfMissing("conferences", "google_sheet_last_synced_at", "TIMESTAMP NULL");
     await addColumnIfMissing("conferences", "google_sheet_last_error", "TEXT NULL");
     await addColumnIfMissing("conferences", "archived_at", "TIMESTAMP NULL");
+    await addColumnIfMissing("registrations", "selected_days", "VARCHAR(50) NULL");
+    await addColumnIfMissing("registrations", "selected_day_count", "INT DEFAULT 1");
+    await addColumnIfMissing("registrations", "selected_price", "DECIMAL(10,2) NULL");
 
     await pool.query(`
         CREATE TABLE IF NOT EXISTS audit_logs (
