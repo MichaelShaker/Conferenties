@@ -194,7 +194,7 @@ async function cancelMyRegistration(registration) {
 <style scoped>
 .registrations-view {
   min-height: 100vh;
-  background: #f8fafc;
+  background: #f7f4ee;
   padding-bottom: 80px;
 }
 
@@ -209,20 +209,9 @@ async function cancelMyRegistration(registration) {
   gap: 40px;
   padding: 90px max(4vw, 32px) 70px;
   background:
-      radial-gradient(circle at 85% 18%, rgba(37, 99, 235, 0.18), transparent 30%),
-      linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #eef4ff 100%);
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.registrations-hero::after {
-  content: "";
-  position: absolute;
-  right: -120px;
-  bottom: -150px;
-  width: 360px;
-  height: 360px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
+      linear-gradient(90deg, rgba(9, 17, 34, 0.9), rgba(9, 17, 34, 0.58)),
+      url('../assets/home.png') center / cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .registrations-hero__content {
@@ -242,7 +231,7 @@ async function cancelMyRegistration(registration) {
 
 .registrations-hero h1 {
   margin-bottom: 18px;
-  color: #0f172a;
+  color: #ffffff;
   font-size: clamp(3rem, 6vw, 5.8rem);
   line-height: 0.92;
   letter-spacing: -0.08em;
@@ -250,7 +239,7 @@ async function cancelMyRegistration(registration) {
 
 .registrations-hero p {
   max-width: 640px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.78);
   font-size: 1.08rem;
   line-height: 1.8;
 }
@@ -259,7 +248,8 @@ async function cancelMyRegistration(registration) {
   display: inline-flex;
   margin-top: 28px;
   padding: 14px 20px;
-  border-radius: 16px;
+  min-height: 50px;
+  border-radius: 10px;
   background: #2563eb;
   color: #ffffff;
   font-weight: 900;
@@ -280,8 +270,9 @@ async function cancelMyRegistration(registration) {
   display: grid;
   place-items: center;
   text-align: center;
-  border-radius: 36px;
-  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.68);
   color: #ffffff;
   box-shadow: 0 24px 55px rgba(15, 23, 42, 0.22);
 }
@@ -303,7 +294,7 @@ async function cancelMyRegistration(registration) {
 
 /* LIST */
 .registrations-list {
-  width: min(1180px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: 46px auto 0;
   display: grid;
   gap: 22px;
@@ -313,7 +304,7 @@ async function cancelMyRegistration(registration) {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   overflow: hidden;
-  border-radius: 28px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
@@ -355,7 +346,7 @@ async function cancelMyRegistration(registration) {
   display: inline-flex;
   align-items: center;
   padding: 7px 12px;
-  border-radius: 999px;
+  border-radius: 10px;
   font-size: 0.78rem;
   font-weight: 900;
 }
@@ -386,7 +377,7 @@ async function cancelMyRegistration(registration) {
 
 .registration-details div {
   padding: 18px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
 }
@@ -429,6 +420,7 @@ async function cancelMyRegistration(registration) {
 
 .cancel-registration-button {
   margin-top: 16px;
+  min-height: 46px;
   padding: 11px 14px;
   border-radius: 8px;
   background: #fee2e2;
@@ -439,11 +431,11 @@ async function cancelMyRegistration(registration) {
 /* STATES */
 .state-box,
 .empty-panel {
-  width: min(1180px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: 46px auto 0;
   padding: 64px 32px;
   text-align: center;
-  border-radius: 30px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
@@ -476,7 +468,8 @@ async function cancelMyRegistration(registration) {
   display: inline-flex;
   justify-content: center;
   padding: 14px 22px;
-  border-radius: 16px;
+  min-height: 50px;
+  border-radius: 10px;
   background: #2563eb;
   color: #ffffff;
   font-weight: 900;
@@ -501,9 +494,13 @@ async function cancelMyRegistration(registration) {
   }
 
   .registration-count {
-    width: 125px;
-    height: 125px;
-    border-radius: 30px;
+    width: 100%;
+    height: auto;
+    min-height: 88px;
+    display: flex;
+    justify-content: space-between;
+    padding: 18px;
+    border-radius: 14px;
   }
 
   .registration-card {
@@ -522,7 +519,8 @@ async function cancelMyRegistration(registration) {
   }
 
   .registrations-hero h1 {
-    font-size: 3rem;
+    font-size: 2.55rem;
+    letter-spacing: -0.05em;
   }
 
   .hero-button,
@@ -531,11 +529,17 @@ async function cancelMyRegistration(registration) {
   }
 
   .registration-content {
-    padding: 22px;
+    padding: 18px;
   }
 
   .registration-details {
     grid-template-columns: 1fr;
+  }
+
+  .registrations-list,
+  .state-box,
+  .empty-panel {
+    width: calc(100% - 28px);
   }
 }
 </style>

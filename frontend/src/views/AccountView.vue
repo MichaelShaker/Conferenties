@@ -99,28 +99,8 @@
           </div>
 
           <div class="detail-item">
-            <span>Woonplaats</span>
-            <strong>{{ profile.city || '-' }}</strong>
-          </div>
-
-          <div class="detail-item">
-            <span>Rang / functie</span>
-            <strong>{{ profile.rank_title || '-' }}</strong>
-          </div>
-
-          <div class="detail-item">
-            <span>Biechtvader</span>
-            <strong>{{ profile.confession_father || '-' }}</strong>
-          </div>
-
-          <div class="detail-item">
-            <span>Allergieën</span>
-            <strong>{{ profile.allergies || '-' }}</strong>
-          </div>
-
-          <div class="detail-item full">
-            <span>Dieetwensen</span>
-            <strong>{{ profile.dietary_notes || '-' }}</strong>
+            <span>Shirtmaat</span>
+            <strong>{{ profile.shirt_size || '-' }}</strong>
           </div>
 
           <div class="detail-item">
@@ -208,8 +188,7 @@ const missingProfileFields = computed(() => {
     ['telefoon', profile.value.phone],
     ['geboortedatum', profile.value.birth_date],
     ['kerk', profile.value.church_id],
-    ['shirtmaat', profile.value.shirt_size],
-    ['vervoer', profile.value.transport_option]
+    ['shirtmaat', profile.value.shirt_size]
   ]
 
   return checks
@@ -233,7 +212,7 @@ onMounted(async () => {
 <style scoped>
 .account-view {
   min-height: 100vh;
-  background: #f8fafc;
+  background: #f7f4ee;
   padding-bottom: 80px;
 }
 
@@ -248,20 +227,9 @@ onMounted(async () => {
   gap: 40px;
   padding: 90px max(4vw, 32px) 70px;
   background:
-      radial-gradient(circle at 85% 20%, rgba(37, 99, 235, 0.18), transparent 30%),
-      linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #eef4ff 100%);
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.account-hero::after {
-  content: "";
-  position: absolute;
-  right: -120px;
-  bottom: -150px;
-  width: 360px;
-  height: 360px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
+      linear-gradient(90deg, rgba(9, 17, 34, 0.9), rgba(9, 17, 34, 0.58)),
+      url('../assets/home.png') center / cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .account-hero__content {
@@ -281,7 +249,7 @@ onMounted(async () => {
 
 .account-hero h1 {
   margin-bottom: 18px;
-  color: #0f172a;
+  color: #ffffff;
   font-size: clamp(3rem, 6vw, 5.8rem);
   line-height: 0.92;
   letter-spacing: -0.08em;
@@ -289,7 +257,7 @@ onMounted(async () => {
 
 .account-hero p {
   max-width: 620px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.78);
   font-size: 1.08rem;
   line-height: 1.8;
 }
@@ -301,8 +269,9 @@ onMounted(async () => {
   height: 150px;
   display: grid;
   place-items: center;
-  border-radius: 36px;
-  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.68);
   color: #ffffff;
   font-size: 3rem;
   font-weight: 900;
@@ -321,7 +290,9 @@ onMounted(async () => {
   display: inline-flex;
   justify-content: center;
   padding: 14px 20px;
-  border-radius: 16px;
+  min-height: 50px;
+  align-items: center;
+  border-radius: 10px;
   font-weight: 900;
   text-decoration: none;
 }
@@ -341,7 +312,7 @@ onMounted(async () => {
 .account-summary {
   position: relative;
   z-index: 3;
-  width: min(1180px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: -42px auto 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -350,7 +321,7 @@ onMounted(async () => {
 
 .account-summary div {
   padding: 22px;
-  border-radius: 24px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.09);
@@ -375,7 +346,7 @@ onMounted(async () => {
 
 /* CONTENT */
 .account-content {
-  width: min(1180px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: 46px auto 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -406,7 +377,7 @@ onMounted(async () => {
 .edit-link {
   flex-shrink: 0;
   padding: 11px 16px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: #dbeafe;
   color: #2563eb;
   font-size: 0.88rem;
@@ -422,7 +393,7 @@ onMounted(async () => {
 
 .detail-item {
   padding: 22px;
-  border-radius: 22px;
+  border-radius: 10px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
 }
@@ -436,7 +407,7 @@ onMounted(async () => {
   position: sticky;
   top: 110px;
   padding: 28px;
-  border-radius: 28px;
+  border-radius: 14px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
@@ -467,7 +438,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 16px;
   padding: 18px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   color: #0f172a;
@@ -513,7 +484,7 @@ onMounted(async () => {
 /* EMPTY */
 .empty-profile {
   padding: 24px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   color: #64748b;
@@ -558,9 +529,12 @@ onMounted(async () => {
   }
 
   .profile-avatar {
-    width: 120px;
-    height: 120px;
-    border-radius: 30px;
+    width: 100%;
+    height: auto;
+    min-height: 88px;
+    justify-content: flex-start;
+    padding: 20px;
+    border-radius: 14px;
     font-size: 2.4rem;
   }
 
@@ -583,11 +557,17 @@ onMounted(async () => {
   }
 
   .account-hero h1 {
-    font-size: 3rem;
+    font-size: 2.55rem;
+    letter-spacing: -0.05em;
   }
 
   .hero-button {
     width: 100%;
+  }
+
+  .account-summary,
+  .account-content {
+    width: calc(100% - 28px);
   }
 }
 </style>

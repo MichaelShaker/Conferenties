@@ -68,13 +68,13 @@
           <div class="section-title">
             <span>02</span>
             <div>
-              <h2>Kerkgegevens</h2>
-              <p>Dit gebruiken we later voor lokale events en nieuwsbrieven.</p>
+              <h2>Kerk en voorkeuren</h2>
+              <p>Dit gebruiken we voor je aanmeldingen en eventcommunicatie.</p>
             </div>
           </div>
 
           <div class="form-grid">
-            <div class="form-group">
+            <div class="form-group wide">
               <label>Kerk</label>
               <select v-model="form.churchId" required>
                 <option value="">Kies je kerk</option>
@@ -89,33 +89,6 @@
             </div>
 
             <div class="form-group">
-              <label>Woonplaats</label>
-              <input v-model="form.city" type="text" placeholder="Bijv. Amsterdam" />
-            </div>
-
-            <div class="form-group">
-              <label>Rang / functie</label>
-              <input v-model="form.rankTitle" type="text" placeholder="Bijv. lid, diaken, servant" />
-            </div>
-
-            <div class="form-group">
-              <label>Biechtvader</label>
-              <input v-model="form.confessionFather" type="text" placeholder="Bijv. Abouna..." />
-            </div>
-          </div>
-        </div>
-
-        <div v-if="activeStep === 2" class="form-section wizard-section">
-          <div class="section-title">
-            <span>03</span>
-            <div>
-              <h2>Extra informatie</h2>
-              <p>Handig bij diners, kampen en conferenties.</p>
-            </div>
-          </div>
-
-          <div class="form-grid">
-            <div class="form-group">
               <label>Shirtmaat</label>
               <select v-model="form.shirtSize">
                 <option value="">Kies je maat</option>
@@ -123,26 +96,6 @@
                   {{ size }}
                 </option>
               </select>
-            </div>
-
-            <div class="form-group transport-field">
-              <label>Vervoer naar conferenties</label>
-              <select v-model="form.transportOption">
-                <option value="">Kies vervoer</option>
-                <option value="own_transport">Eigen vervoer</option>
-                <option value="bus">Bus (+ kosten)</option>
-              </select>
-              <small>Je kunt dit per inschrijving nog aanpassen als dat nodig is.</small>
-            </div>
-
-            <div class="form-group full">
-              <label>Allergieën</label>
-              <textarea v-model="form.allergies" rows="3" placeholder="Bijv. noten, lactose, geen"></textarea>
-            </div>
-
-            <div class="form-group full">
-              <label>Dieetwensen</label>
-              <textarea v-model="form.dietaryNotes" rows="3" placeholder="Bijv. vegetarisch, geen"></textarea>
             </div>
 
             <label class="newsletter-toggle full">
@@ -216,13 +169,8 @@ const profileSteps = [
   },
   {
     title: 'Kerk',
-    summary: 'Koppel je profiel aan je kerk en woonplaats.',
+    summary: 'Kies je kerk en eventueel je shirtmaat.',
     requiredFields: ['churchId']
-  },
-  {
-    title: 'Voorkeuren',
-    summary: 'Deze gegevens helpen bij praktische voorbereidingen voor events.',
-    requiredFields: []
   }
 ]
 
@@ -234,13 +182,7 @@ const form = reactive({
   phone: '',
   birthDate: '',
   churchId: '',
-  city: '',
-  rankTitle: '',
-  confessionFather: '',
-  allergies: '',
-  dietaryNotes: '',
   shirtSize: '',
-  transportOption: '',
   newsletterEnabled: true
 })
 
@@ -256,13 +198,7 @@ onMounted(async () => {
       form.phone = profile.phone || ''
       form.birthDate = profile.birth_date ? profile.birth_date.slice(0, 10) : ''
       form.churchId = profile.church_id || ''
-      form.city = profile.city || ''
-      form.rankTitle = profile.rank_title || ''
-      form.confessionFather = profile.confession_father || ''
-      form.allergies = profile.allergies || ''
-      form.dietaryNotes = profile.dietary_notes || ''
       form.shirtSize = profile.shirt_size || ''
-      form.transportOption = profile.transport_option || ''
       form.newsletterEnabled = profile.newsletterEnabled !== 0
     }
   } catch (error) {
@@ -339,7 +275,9 @@ async function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 28px;
-  padding: 32px 0 72px;
+  min-height: 100vh;
+  padding: 0 0 72px;
+  background: #f7f4ee;
 }
 
 .profile-hero {
@@ -347,13 +285,12 @@ async function handleSubmit() {
   align-items: flex-end;
   justify-content: space-between;
   gap: 32px;
-  padding: 48px;
-  border-radius: 38px;
+  min-height: 360px;
+  padding: 104px max(4vw, 28px) 58px;
   background:
-      radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 34%),
-      linear-gradient(135deg, #ffffff, #f8fafc);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
+      linear-gradient(90deg, rgba(9, 17, 34, 0.9), rgba(9, 17, 34, 0.58)),
+      url('../assets/home.png') center / cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .eyebrow {
@@ -368,7 +305,7 @@ async function handleSubmit() {
 .profile-hero h1 {
   max-width: 820px;
   margin-bottom: 14px;
-  color: var(--text);
+  color: #ffffff;
   font-size: clamp(2.7rem, 6vw, 5.6rem);
   line-height: 0.9;
   letter-spacing: -0.08em;
@@ -376,7 +313,7 @@ async function handleSubmit() {
 
 .profile-hero p {
   max-width: 650px;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.78);
   font-size: 1.05rem;
   line-height: 1.8;
 }
@@ -385,8 +322,9 @@ async function handleSubmit() {
   flex-shrink: 0;
   min-width: 180px;
   padding: 24px;
-  border-radius: 28px;
-  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.68);
   color: white;
   box-shadow: var(--shadow-md);
 }
@@ -404,8 +342,10 @@ async function handleSubmit() {
 }
 
 .profile-card {
+  width: min(1280px, calc(100% - 56px));
+  margin: 0 auto;
   padding: 34px;
-  border-radius: 34px;
+  border-radius: 14px;
   background: white;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -519,7 +459,8 @@ textarea {
   max-width: 100%;
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  min-height: 52px;
+  border-radius: 10px;
   background: #f8fafc;
   padding: 14px 16px;
   color: var(--text);
@@ -577,7 +518,7 @@ textarea {
   gap: 24px;
   margin-top: 28px;
   padding: 24px;
-  border-radius: 26px;
+  border-radius: 12px;
   background: #f8fafc;
   border: 1px solid var(--border);
 }
@@ -595,6 +536,7 @@ textarea {
 
 .submit-btn {
   min-width: 180px;
+  min-height: 50px;
 }
 
 .step-actions {
@@ -609,7 +551,7 @@ textarea {
     align-items: flex-start;
     flex-direction: column;
     gap: 22px;
-    padding: 30px 20px;
+    padding: 92px 20px 42px;
   }
 
   .form-grid {
@@ -621,8 +563,9 @@ textarea {
   }
 
   .profile-card {
+    width: calc(100% - 28px);
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 12px;
   }
 
   .submit-panel {
@@ -642,22 +585,18 @@ textarea {
 @media (max-width: 560px) {
   .profile-view {
     gap: 18px;
-    padding: 16px 0 48px;
-  }
-
-  .profile-hero {
-    border-radius: 8px;
+    padding: 0 0 48px;
   }
 
   .profile-hero h1 {
-    font-size: 2.25rem;
+    font-size: 2.35rem;
     line-height: 1;
     letter-spacing: -0.04em;
   }
 
   .hero-card {
     width: 100%;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 18px;
   }
 
@@ -678,7 +617,7 @@ textarea {
   select,
   textarea {
     min-height: 48px;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 12px;
     font-size: 16px;
   }
@@ -690,7 +629,7 @@ textarea {
   .submit-panel {
     margin-top: 18px;
     padding: 16px;
-    border-radius: 8px;
+    border-radius: 12px;
   }
 }
 </style>

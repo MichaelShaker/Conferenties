@@ -90,7 +90,7 @@ onUnmounted(() => {
 }
 
 .navbar-inner {
-  width: min(1200px, 92%);
+  width: min(1400px, calc(100% - 56px));
   min-height: 75px;
   margin: 0 auto;
 
@@ -101,6 +101,9 @@ onUnmounted(() => {
 
 /* 🔥 LOGO (more premium) */
 .logo {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
   font-size: 1.5rem;
   font-weight: 900;
   letter-spacing: -0.03em;
@@ -126,7 +129,7 @@ onUnmounted(() => {
 .nav-links a,
 .logout-btn {
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: 10px;
 
   font-weight: 700;
   font-size: 0.95rem;
@@ -182,11 +185,13 @@ onUnmounted(() => {
 /* MOBILE */
 @media (max-width: 800px) {
   .navbar-inner {
+    width: calc(100% - 28px);
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
     min-height: auto;
     padding: 10px 0;
+    overflow: hidden;
   }
 
   .logo {
@@ -195,10 +200,11 @@ onUnmounted(() => {
 
   .nav-links {
     width: 100%;
+    max-width: 100%;
     flex-wrap: nowrap;
     gap: 8px;
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding-bottom: 6px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -210,8 +216,8 @@ onUnmounted(() => {
   .nav-links a,
   .logout-btn {
     flex: 0 0 auto;
-    min-height: 36px;
-    padding: 7px 11px;
+    min-height: 40px;
+    padding: 9px 12px;
     font-size: 0.9rem;
     white-space: nowrap;
   }

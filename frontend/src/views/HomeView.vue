@@ -33,13 +33,10 @@
         </div>
 
         <!-- RIGHT CARD -->
-        <div class="hero-info-card">
-          <p class="card-label">Aanmelden</p>
-          <h3>Snel en overzichtelijk inschrijven</h3>
-          <p>
-            Maak een account aan, kies een event en beheer je aanmelding eenvoudig online.
-          </p>
-          <strong>{{ events.length || '2–4' }} events beschikbaar</strong>
+        <div class="hero-info-card" aria-label="Aanmeldstappen">
+          <span>1. Kies event</span>
+          <span>2. Meld je aan</span>
+          <span>3. Rond betaling af</span>
         </div>
       </div>
     </section>
@@ -48,10 +45,9 @@
     <section class="featured-section">
       <div class="section-intro">
         <p class="eyebrow">Aankomende selectie</p>
-        <h2>Events die extra aandacht verdienen.</h2>
+        <h2>Een helder overzicht van wat eraan komt.</h2>
         <p>
-          Omdat er maar een paar events tegelijk beschikbaar zijn,
-          krijgt elk event de ruimte om echt op te vallen.
+          Snel zien wanneer het is, voor wie het bedoeld is en wat je volgende stap is.
         </p>
       </div>
 
@@ -138,7 +134,7 @@ onMounted(async () => {
 .hero-content {
   position: relative;
   z-index: 2;
-  width: min(1200px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 360px;
@@ -170,7 +166,7 @@ onMounted(async () => {
 
 .hero-btn {
   padding: 14px 26px;
-  border-radius: 999px;
+  border-radius: 10px;
   font-weight: 900;
 }
 
@@ -186,42 +182,41 @@ onMounted(async () => {
 }
 
 .hero-info-card {
-  padding: 34px;
-  border-radius: 32px;
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 12px;
   color: white;
-  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(15, 23, 42, 0.42);
   backdrop-filter: blur(18px);
 }
 
-.card-label {
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
-  color: #bfdbfe;
-  margin-bottom: 12px;
+.hero-info-card span {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  font-weight: 900;
 }
 
-.hero-info-card h3 {
-  margin-bottom: 12px;
-}
-
-.hero-info-card p {
-  margin-bottom: 18px;
-  color: #dbeafe;
+.hero-info-card span:last-child {
+  border-bottom: 0;
 }
 
 /* FEATURED */
 .featured-section {
-  width: min(1200px, 92%);
-  margin: 0 auto;
-  padding: 90px 0;
+  width: 100%;
+  margin: 0;
+  padding: 86px max(4vw, 28px);
   display: flex;
   flex-direction: column;
   gap: 36px;
-  border-top: 1px solid var(--border);
+  background: #f7f4ee;
 }
 
 .section-intro {
+  width: min(1280px, 100%);
   max-width: 760px;
+  margin: 0 auto;
 }
 
 .section-intro .eyebrow {
@@ -249,15 +244,19 @@ onMounted(async () => {
 }
 
 .featured-events {
+  width: min(1280px, 100%);
+  margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 26px;
 }
 
 .empty-feature {
+  width: min(1280px, 100%);
+  margin: 0 auto;
   padding: 72px 32px;
   text-align: center;
-  border-radius: 34px;
+  border-radius: 14px;
   background: white;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -265,10 +264,10 @@ onMounted(async () => {
 
 /* CTA */
 .final-cta {
-  width: min(1200px, 92%);
-  margin: 0 auto 80px;
-  padding: 64px;
-  border-radius: 42px;
+  width: 100%;
+  margin: 0;
+  padding: 72px max(4vw, 28px);
+  border-radius: 0;
   color: white;
   background:
       radial-gradient(circle at top right, rgba(96, 165, 250, 0.32), transparent 32%),
@@ -297,7 +296,7 @@ onMounted(async () => {
 .cta-button {
   flex-shrink: 0;
   padding: 16px 26px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: white;
   color: var(--primary);
   font-weight: 900;
@@ -312,6 +311,7 @@ onMounted(async () => {
   }
 
   .hero-content {
+    width: calc(100% - 28px);
     grid-template-columns: 1fr;
     padding: 44px 0 64px;
     gap: 34px;
@@ -338,7 +338,6 @@ onMounted(async () => {
   }
 
   .hero-info-card {
-    border-radius: 8px;
     padding: 24px;
   }
 

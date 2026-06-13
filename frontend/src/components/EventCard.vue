@@ -153,24 +153,18 @@ const shortDescription = computed(() => {
   overflow: hidden;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 28px;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
   transition: 0.25s ease;
 }
 
 .event-card::before {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 22px;
-  pointer-events: none;
-  z-index: 2;
+  content: none;
 }
 
 .event-card:hover {
-  transform: translateY(-6px) rotate(-0.4deg);
-  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.14);
+  transform: translateY(-3px);
+  box-shadow: 0 22px 52px rgba(15, 23, 42, 0.12);
 }
 
 .event-card__image-area {
@@ -212,7 +206,7 @@ const shortDescription = computed(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.94);
   color: #0f172a;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
@@ -239,7 +233,7 @@ const shortDescription = computed(() => {
   bottom: 18px;
   z-index: 3;
   padding: 8px 13px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: #0f172a;
   color: white;
   font-size: 0.78rem;
@@ -270,7 +264,7 @@ const shortDescription = computed(() => {
 .event-card__price {
   flex-shrink: 0;
   padding: 8px 11px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #dbeafe;
   color: #1d4ed8;
   font-size: 0.9rem;
@@ -285,15 +279,20 @@ const shortDescription = computed(() => {
 }
 
 .event-card__info {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
+  display: grid;
+  gap: 8px;
   margin-bottom: 20px;
-  padding-left: 14px;
-  border-left: 3px solid #2563eb;
-  color: #334155;
-  font-size: 0.92rem;
+  color: #475569;
+  font-size: 0.9rem;
   font-weight: 700;
+}
+
+.event-card__info span {
+  display: block;
+  padding: 9px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
 .event-card__button {
@@ -303,7 +302,8 @@ const shortDescription = computed(() => {
   gap: 14px;
   width: 100%;
   padding: 14px 17px;
-  border-radius: 18px;
+  min-height: 48px;
+  border-radius: 10px;
   background: #0f172a;
   color: #ffffff;
   font-weight: 900;
@@ -326,11 +326,17 @@ const shortDescription = computed(() => {
   }
 
   .event-card__content {
-    padding: 20px;
+    padding: 18px;
   }
 
   .event-card__header {
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .event-card__price {
+    width: 100%;
+    text-align: center;
   }
 }
 </style>

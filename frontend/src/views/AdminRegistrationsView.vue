@@ -94,13 +94,17 @@
       <section class="event-export-panel">
         <div class="panel-heading export-heading">
           <div>
-            <p class="eyebrow">Per event</p>
-            <h2>Deelnemerslijst voor locatie</h2>
-            <p>Bekijk of download alleen de goedgekeurde deelnemers per event.</p>
+            <p class="eyebrow">Goedgekeurde deelnemers</p>
+            <h2>Deelnemerslijsten alleen openen wanneer nodig.</h2>
+            <p>De controlelijst blijft rustig. Open dit blok alleen als je locatie- of exportlijsten nodig hebt.</p>
           </div>
+
+          <button type="button" class="secondary-button" @click="showApprovedLists = !showApprovedLists">
+            {{ showApprovedLists ? 'Lijsten verbergen' : 'Goedgekeurde deelnemers tonen' }}
+          </button>
         </div>
 
-        <div v-if="eventSummaries.length > 0" class="event-export-grid">
+        <div v-if="showApprovedLists && eventSummaries.length > 0" class="event-export-grid">
           <article
               v-for="event in eventSummaries"
               :key="event.id"
@@ -126,7 +130,7 @@
 
             <div class="event-export-actions">
               <button type="button" class="secondary-button" @click="selectEvent(event.id)">
-                Bekijken
+                Lijst bekijken
               </button>
 
               <button
@@ -144,7 +148,7 @@
                   @click="syncGoogleSheet(event)"
                   :disabled="!googleStatus.connected || googleLoading"
               >
-                Herstel sync
+                Sheet maken/bijwerken
               </button>
 
               <a
@@ -159,7 +163,7 @@
           </article>
         </div>
 
-        <div v-if="selectedEventSummary" class="event-preview">
+        <div v-if="showApprovedLists && selectedEventSummary" class="event-preview">
           <div class="preview-heading">
             <div>
               <h3>{{ selectedEventSummary.title }}</h3>
@@ -184,7 +188,6 @@
                 <th>E-mail</th>
                 <th>Telefoon</th>
                 <th>Shirtmaat</th>
-                <th>Vervoer</th>
                 <th>Dagen</th>
                 <th>Kerk</th>
                 <th>Status</th>
@@ -198,7 +201,6 @@
                 <td>{{ registration.userEmail }}</td>
                 <td>{{ registration.userPhone || '-' }}</td>
                 <td>{{ registration.shirtSize || '-' }}</td>
-                <td>{{ transportOptionText(registration.transportOption) }}</td>
                 <td>{{ formatSelectedDays(registration.selectedDays) }}</td>
                 <td>{{ registration.churchName || '-' }}</td>
                 <td>{{ registrationStatusText(registration.registrationStatus) }}</td>
@@ -243,130 +245,50 @@
             <thead>
             <tr>
               <th>Gebruiker</th>
-              <th>Event</th>
-              <th>Datum</th>
-              <th>Extra</th>
+              <th>Betaald</th>
               <th>Dagen</th>
               <th>Prijs</th>
-              <th>Betaalmethode</th>
-              <th>Betaalstatus</th>
-              <th>Registratie</th>
-              <th>Admin notitie</th>
-              <th>Betaalbewijs</th>
               <th>Actie</th>
             </tr>
             </thead>
 
             <tbody>
-            <tr v-for="registration in filteredRegistrations" :key="registration.id">
-              <td>
+            <tr
+                v-for="registration in filteredRegistrations"
+                :key="registration.id"
+                :class="{ selected: selectedRegistration?.id === registration.id }"
+                @click="selectRegistration(registration)"
+            >
+              <td data-label="Gebruiker">
                 <div class="user-cell">
                   <strong>{{ registration.userName }}</strong>
-                  <span>{{ registration.userEmail }}</span>
+                  <span>{{ registration.eventTitle }}</span>
                 </div>
               </td>
 
-              <td>
-                <strong>{{ registration.eventTitle }}</strong>
+              <td data-label="Betaald">
+                <span :class="['status-pill', registration.paymentStatus]">
+                  {{ paymentStatusText(registration.paymentStatus) }}
+                </span>
               </td>
 
-              <td>{{ formatDate(registration.eventDate) }}</td>
+              <td data-label="Dagen">{{ formatSelectedDays(registration.selectedDays) }}</td>
+              <td data-label="Prijs">€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</td>
 
-              <td>
-                <div class="extra-cell">
-                  <span>{{ registration.shirtSize || 'Geen shirtmaat' }}</span>
-                  <span>{{ transportOptionText(registration.transportOption) }}</span>
-                </div>
-              </td>
-
-              <td>{{ formatSelectedDays(registration.selectedDays) }}</td>
-              <td>€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</td>
-
-              <td>
-                <select
-                    v-model="registration.paymentMethod"
-                    class="payment-method-select"
-                    @change="saveRegistrationNote(registration)"
-                >
-                  <option value="">Nog niet gekozen</option>
-                  <option value="tikkie">Tikkie / bewijs</option>
-                  <option value="cash">Cash</option>
-                </select>
-              </td>
-
-              <td>
-                  <span :class="['status-pill', registration.paymentStatus]">
-                    {{ paymentStatusText(registration.paymentStatus) }}
-                  </span>
-              </td>
-
-              <td>
-                  <span :class="['status-pill', registration.registrationStatus]">
-                    {{ registrationStatusText(registration.registrationStatus) }}
-                  </span>
-              </td>
-
-              <td>
-                <textarea
-                    v-model="registration.adminNote"
-                    class="note-input"
-                    rows="2"
-                    placeholder="Interne notitie"
-                    @blur="saveRegistrationNote(registration)"
-                />
-              </td>
-
-              <td>
-                <button
-                    v-if="registration.hasPaymentProof"
-                    class="proof-button"
-                    @click="openPaymentProof(registration)"
-                >
-                  Bewijs openen
-                </button>
-
-                <span v-else class="muted-text">
-                    Geen bewijs
-                  </span>
-              </td>
-
-              <td>
+              <td data-label="Actie">
                 <div class="action-buttons">
                   <button
                       class="approve-button"
-                      @click="approveRegistration(registration)"
+                      @click.stop="approveRegistration(registration)"
                   >
                     Goedkeuren
                   </button>
 
                   <button
                       class="reject-button"
-                      @click="markAsRejected(registration)"
+                      @click.stop="markAsRejected(registration)"
                   >
                     Afwijzen
-                  </button>
-
-                  <button
-                      class="csv-button"
-                      @click="exportCsvForEvent(registration)"
-                  >
-                    Export CSV
-                  </button>
-
-                  <button
-                      class="secondary-button"
-                      @click="openCustomEmailModal(registration)"
-                      :disabled="!registration.userEmail"
-                  >
-                    Mail sturen
-                  </button>
-
-                  <button
-                      class="secondary-button"
-                      @click="resendMail(registration)"
-                      :disabled="!canResendRegistrationMail(registration)"
-                  >
-                    Mail opnieuw
                   </button>
                 </div>
               </td>
@@ -379,6 +301,80 @@
             <p>Er zijn geen registraties in deze tab.</p>
           </div>
         </div>
+
+        <aside v-if="selectedRegistration" class="registration-detail-panel">
+          <div class="detail-panel-heading">
+            <div>
+              <p class="eyebrow">Details</p>
+              <h3>{{ selectedRegistration.userName }}</h3>
+              <p>{{ selectedRegistration.eventTitle }}</p>
+            </div>
+
+            <button type="button" class="icon-button" @click="selectedRegistration = null" aria-label="Details sluiten">
+              x
+            </button>
+          </div>
+
+          <div class="detail-grid">
+            <div>
+              <span>E-mail</span>
+              <strong>{{ selectedRegistration.userEmail || '-' }}</strong>
+            </div>
+
+            <div>
+              <span>Telefoon</span>
+              <strong>{{ selectedRegistration.userPhone || '-' }}</strong>
+            </div>
+
+            <div>
+              <span>Datum</span>
+              <strong>{{ formatDate(selectedRegistration.eventDate) }}</strong>
+            </div>
+
+            <div>
+              <span>Dagen</span>
+              <strong>{{ formatSelectedDays(selectedRegistration.selectedDays) }}</strong>
+            </div>
+
+            <div>
+              <span>Prijs</span>
+              <strong>€{{ Number(selectedRegistration.selectedPrice || 0).toFixed(2) }}</strong>
+            </div>
+
+            <div>
+              <span>Shirtmaat</span>
+              <strong>{{ selectedRegistration.shirtSize || '-' }}</strong>
+            </div>
+
+            <div>
+              <span>Kerk</span>
+              <strong>{{ selectedRegistration.churchName || '-' }}</strong>
+            </div>
+
+            <div>
+              <span>Status</span>
+              <strong>{{ registrationStatusText(selectedRegistration.registrationStatus) }}</strong>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <button
+                v-if="selectedRegistration.hasPaymentProof"
+                class="proof-button"
+                @click="openPaymentProof(selectedRegistration)"
+            >
+              Betaalbewijs openen
+            </button>
+
+            <button class="approve-button" @click="approveRegistration(selectedRegistration)">
+              Goedkeuren
+            </button>
+
+            <button class="reject-button" @click="markAsRejected(selectedRegistration)">
+              Afwijzen
+            </button>
+          </div>
+        </aside>
       </section>
     </section>
 
@@ -442,7 +438,9 @@ const message = ref('')
 const success = ref(false)
 const registrations = ref([])
 const selectedEventId = ref('')
+const selectedRegistration = ref(null)
 const activeRegistrationTab = ref('pending')
+const showApprovedLists = ref(false)
 const googleLoading = ref(false)
 const googleStatus = ref({
   connected: false,
@@ -700,13 +698,6 @@ function registrationStatusText(status) {
   return status || '-'
 }
 
-function transportOptionText(option) {
-  if (option === 'own_transport') return 'Eigen vervoer'
-  if (option === 'bus') return 'Bus'
-
-  return '-'
-}
-
 function formatSelectedDays(value) {
   if (!value) return 'Volledig event'
 
@@ -736,6 +727,10 @@ function canResendRegistrationMail(registration) {
 
 function selectEvent(eventId) {
   selectedEventId.value = eventId
+}
+
+function selectRegistration(registration) {
+  selectedRegistration.value = registration
 }
 
 async function openPaymentProof(registration) {
@@ -803,6 +798,7 @@ async function approveRegistration(registration) {
     registration.paymentStatus = 'paid'
     registration.registrationStatus = 'confirmed'
     registration.paymentMethod = paymentMethod
+    selectedRegistration.value = registration
 
     success.value = true
     message.value = `Registratie goedgekeurd (${paymentMethodText(paymentMethod)}). De gebruiker is nu officieel ingeschreven.`
@@ -823,6 +819,7 @@ async function markAsRejected(registration) {
 
     registration.paymentStatus = 'rejected'
     registration.registrationStatus = 'rejected'
+    selectedRegistration.value = registration
 
     success.value = true
     message.value = 'Registratie afgewezen.'
@@ -915,7 +912,7 @@ async function exportCsvForEvent(registration) {
 <style scoped>
 .admin-registrations {
   min-height: 100vh;
-  background: #f8fafc;
+  background: #f7f4ee;
   padding-bottom: 80px;
 }
 
@@ -923,27 +920,16 @@ async function exportCsvForEvent(registration) {
 .registrations-hero {
   position: relative;
   overflow: hidden;
-  min-height: 390px;
+  min-height: 360px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 40px;
   padding: 90px max(4vw, 32px) 66px;
   background:
-      radial-gradient(circle at 86% 16%, rgba(37, 99, 235, 0.18), transparent 30%),
-      linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #eef4ff 100%);
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.registrations-hero::after {
-  content: "";
-  position: absolute;
-  right: -120px;
-  bottom: -150px;
-  width: 360px;
-  height: 360px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
+      linear-gradient(90deg, rgba(9, 17, 34, 0.9), rgba(9, 17, 34, 0.62)),
+      url('../assets/home.png') center / cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .registrations-hero > div {
@@ -962,7 +948,8 @@ async function exportCsvForEvent(registration) {
 
 .csv-button {
   padding: 10px 13px;
-  border-radius: 14px;
+  min-height: 42px;
+  border-radius: 10px;
   background: #dcfce7;
   color: #166534;
   font-size: 0.82rem;
@@ -984,15 +971,15 @@ async function exportCsvForEvent(registration) {
 .registrations-hero h1 {
   max-width: 860px;
   margin-bottom: 18px;
-  color: #0f172a;
-  font-size: clamp(3rem, 6vw, 5.5rem);
-  line-height: 0.92;
+  color: #ffffff;
+  font-size: clamp(2.8rem, 5vw, 4.8rem);
+  line-height: 0.96;
   letter-spacing: -0.08em;
 }
 
 .registrations-hero p {
   max-width: 680px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.78);
   font-size: 1.08rem;
   line-height: 1.8;
 }
@@ -1003,8 +990,9 @@ async function exportCsvForEvent(registration) {
   display: grid;
   place-items: center;
   text-align: center;
-  border-radius: 36px;
-  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.68);
   color: white;
   box-shadow: 0 24px 55px rgba(15, 23, 42, 0.22);
 }
@@ -1025,11 +1013,14 @@ async function exportCsvForEvent(registration) {
 
 /* CONTENT */
 .registrations-content {
-  width: min(1280px, 92%);
+  width: min(1400px, calc(100% - 56px));
   margin: 46px auto 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .summary-grid {
+  order: 3;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
@@ -1038,7 +1029,7 @@ async function exportCsvForEvent(registration) {
 
 .summary-grid div {
   padding: 24px;
-  border-radius: 24px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
@@ -1073,21 +1064,28 @@ async function exportCsvForEvent(registration) {
 .google-panel,
 .access-card {
   padding: 30px;
-  border-radius: 30px;
+  border-radius: 14px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
 }
 
 .event-export-panel {
+  order: 2;
   margin-bottom: 34px;
 }
 
 .google-panel {
+  order: 4;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+  margin-bottom: 34px;
+}
+
+.registrations-panel {
+  order: 1;
   margin-bottom: 34px;
 }
 
@@ -1110,8 +1108,9 @@ async function exportCsvForEvent(registration) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 42px;
   padding: 10px 13px;
-  border-radius: 14px;
+  border-radius: 10px;
   font-size: 0.82rem;
   font-weight: 900;
   text-decoration: none;
@@ -1192,7 +1191,7 @@ async function exportCsvForEvent(registration) {
   gap: 12px;
   padding: 11px 14px;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #f8fafc;
   color: #475569;
   font-weight: 900;
@@ -1232,7 +1231,7 @@ async function exportCsvForEvent(registration) {
   gap: 18px;
   padding: 20px;
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
+  border-radius: 12px;
   background: #f8fafc;
 }
 
@@ -1270,7 +1269,7 @@ async function exportCsvForEvent(registration) {
 
 .event-export-card dl div {
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
 }
@@ -1297,8 +1296,9 @@ async function exportCsvForEvent(registration) {
 }
 
 .secondary-button {
+  min-height: 42px;
   padding: 10px 13px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #e2e8f0;
   color: #0f172a;
   font-size: 0.82rem;
@@ -1341,12 +1341,26 @@ async function exportCsvForEvent(registration) {
 
 .table-wrapper.compact {
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
+  border-radius: 12px;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.registrations-panel tbody tr {
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.registrations-panel tbody tr:hover,
+.registrations-panel tbody tr.selected {
+  background: #f8fafc;
+}
+
+.registrations-panel tbody tr.selected {
+  box-shadow: inset 3px 0 0 #2563eb;
 }
 
 th {
@@ -1395,7 +1409,7 @@ td strong {
   display: inline-flex;
   align-items: center;
   padding: 7px 11px;
-  border-radius: 999px;
+  border-radius: 10px;
   font-size: 0.78rem;
   font-weight: 900;
   background: #e2e8f0;
@@ -1436,8 +1450,9 @@ td strong {
 .proof-button,
 .approve-button,
 .reject-button {
+  min-height: 42px;
   padding: 10px 13px;
-  border-radius: 14px;
+  border-radius: 10px;
   font-size: 0.82rem;
   font-weight: 900;
   transition: 0.2s ease;
@@ -1500,6 +1515,68 @@ td strong {
   font-weight: 800;
 }
 
+.registration-detail-panel {
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.detail-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.detail-panel-heading h3 {
+  margin-bottom: 5px;
+  color: #0f172a;
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  letter-spacing: -0.04em;
+}
+
+.detail-panel-heading p:not(.eyebrow) {
+  color: #64748b;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-grid div {
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.detail-grid span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-grid strong {
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1513,7 +1590,7 @@ td strong {
 .email-modal {
   width: min(640px, 100%);
   padding: 26px;
-  border-radius: 24px;
+  border-radius: 14px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
@@ -1540,7 +1617,7 @@ td strong {
 .icon-button {
   width: 36px;
   height: 36px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: #f1f5f9;
   color: #0f172a;
   font-weight: 900;
@@ -1569,7 +1646,7 @@ td strong {
   width: 100%;
   padding: 13px 14px;
   border: 1px solid #dbe3ee;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #f8fafc;
   color: #0f172a;
   font: inherit;
@@ -1621,6 +1698,10 @@ td strong {
   .summary-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 780px) {
@@ -1629,10 +1710,24 @@ td strong {
     flex-direction: column;
   }
 
+  .export-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .export-heading .secondary-button {
+    width: 100%;
+    white-space: normal;
+  }
+
   .hero-count {
-    width: 125px;
-    height: 125px;
-    border-radius: 30px;
+    width: 100%;
+    height: auto;
+    min-height: 88px;
+    display: flex;
+    justify-content: space-between;
+    padding: 18px;
+    border-radius: 14px;
   }
 }
 
@@ -1642,23 +1737,29 @@ td strong {
   }
 
   .registrations-hero h1 {
-    font-size: 3rem;
+    font-size: 2.55rem;
+    letter-spacing: -0.05em;
   }
 
   .summary-grid {
     grid-template-columns: 1fr;
   }
 
-  .registrations-panel {
-    padding: 22px;
-    border-radius: 24px;
+  .registrations-content {
+    width: calc(100% - 28px);
+    margin-top: 28px;
+  }
+
+  .registrations-panel,
+  .event-export-panel,
+  .google-panel {
+    padding: 18px;
+    border-radius: 12px;
   }
 
   .google-panel {
     align-items: flex-start;
     flex-direction: column;
-    padding: 22px;
-    border-radius: 24px;
   }
 
   .preview-heading {
@@ -1669,6 +1770,80 @@ td strong {
   .payment-method-select {
     width: 100%;
     min-width: 150px;
+  }
+
+  .registrations-panel .table-wrapper {
+    overflow: visible;
+  }
+
+  .registrations-panel table,
+  .registrations-panel thead,
+  .registrations-panel tbody,
+  .registrations-panel tr,
+  .registrations-panel td {
+    display: block;
+    width: 100%;
+  }
+
+  .registrations-panel thead {
+    display: none;
+  }
+
+  .registrations-panel tr {
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+  }
+
+  .registrations-panel td {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid #edf2f7;
+  }
+
+  .registrations-panel td:last-child {
+    border-bottom: 0;
+  }
+
+  .registrations-panel td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .action-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .event-export-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .event-export-actions > * {
+    width: 100%;
+  }
+
+  .detail-panel-heading,
+  .detail-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-actions > * {
+    width: 100%;
   }
 }
 </style>

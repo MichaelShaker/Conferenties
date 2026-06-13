@@ -443,20 +443,20 @@
 
           <tbody>
           <tr v-for="event in events" :key="event.id">
-            <td><strong>{{ event.title }}</strong></td>
-            <td>{{ event.event_type || event.eventType || 'national' }}</td>
-            <td>{{ formatDateRange(event.date, event.dateEnd) }}</td>
-            <td>{{ event.location }}</td>
-            <td>{{ event.category }}</td>
-            <td>
+            <td data-label="Titel"><strong>{{ event.title }}</strong></td>
+            <td data-label="Type">{{ event.event_type || event.eventType || 'national' }}</td>
+            <td data-label="Datum">{{ formatDateRange(event.date, event.dateEnd) }}</td>
+            <td data-label="Locatie">{{ event.location }}</td>
+            <td data-label="Categorie">{{ event.category }}</td>
+            <td data-label="Leeftijd">
               <span v-if="event.minAge || event.maxAge">
                 {{ event.minAge || '-' }} - {{ event.maxAge || '-' }}
               </span>
               <span v-else>Iedereen</span>
             </td>
-            <td>{{ eventPriceSummary(event) }}</td>
-            <td>{{ event.registeredCount || 0 }} / {{ event.capacity }}</td>
-            <td>
+            <td data-label="Prijs">{{ eventPriceSummary(event) }}</td>
+            <td data-label="Plekken">{{ event.registeredCount || 0 }} / {{ event.capacity }}</td>
+            <td data-label="Actie">
               <div class="table-actions">
                 <button class="action-btn action-btn--danger" @click="removeEvent(event.id)">
                   Archiveren
@@ -1100,7 +1100,7 @@ async function removeEvent(id) {
 <style scoped>
 .admin-events {
   min-height: 100vh;
-  background: #f6f8fb;
+  background: #f7f4ee;
   padding-bottom: 72px;
 }
 
@@ -1111,8 +1111,10 @@ async function removeEvent(id) {
   justify-content: space-between;
   gap: 32px;
   padding: 84px max(4vw, 28px) 54px;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  background:
+      linear-gradient(90deg, rgba(9, 17, 34, 0.9), rgba(9, 17, 34, 0.58)),
+      url('../assets/home.png') center / cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .page-hero > div:first-child {
@@ -1130,13 +1132,13 @@ async function removeEvent(id) {
 
 .page-hero h1 {
   margin-bottom: 14px;
-  color: #0f172a;
+  color: #ffffff;
   font-size: clamp(3rem, 6vw, 5.4rem);
   line-height: 0.95;
 }
 
 .page-hero p {
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.78);
   font-size: 1.06rem;
   line-height: 1.7;
 }
@@ -1148,7 +1150,8 @@ async function removeEvent(id) {
   place-items: center;
   text-align: center;
   border-radius: 8px;
-  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.68);
   color: #ffffff;
 }
 
@@ -1166,7 +1169,7 @@ async function removeEvent(id) {
 }
 
 .event-builder {
-  width: min(1240px, 92%);
+  width: min(1400px, calc(100% - 56px));
   margin: 34px auto 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -1246,7 +1249,7 @@ async function removeEvent(id) {
   background: #ffffff;
   border: 1px solid #dbe3ef;
   border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
 }
 
 .form-panel {
@@ -1270,7 +1273,7 @@ td .table-actions .action-btn {
   justify-content: center;
   padding: 9px 13px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 0.78rem;
   font-weight: 900;
   line-height: 1;
@@ -1412,11 +1415,11 @@ textarea {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: 46px;
-  padding: 12px 13px;
+  min-height: 52px;
+  padding: 13px 14px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  background: #ffffff;
+  background: #f8fafc;
   color: #0f172a;
   font: inherit;
   outline: none;
@@ -1436,6 +1439,7 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: #2563eb;
+  background: #ffffff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
@@ -1625,6 +1629,7 @@ textarea:focus {
 
 .submit-button {
   min-width: 180px;
+  min-height: 50px;
   padding: 13px 18px;
   background: #2563eb;
   color: #ffffff;
@@ -1642,6 +1647,7 @@ textarea:focus {
 .ghost-button,
 .cancel-edit-button {
   min-width: 120px;
+  min-height: 50px;
   padding: 13px 18px;
   border-radius: 8px;
   background: #f1f5f9;
@@ -1732,7 +1738,7 @@ textarea:focus {
 }
 
 .events-overview {
-  width: min(1240px, 92%);
+  width: min(1400px, calc(100% - 56px));
   margin: 36px auto 0;
   padding: 24px;
 }
@@ -1803,7 +1809,7 @@ td strong {
 
   .event-builder,
   .events-overview {
-    width: min(100% - 24px, 1240px);
+    width: calc(100% - 28px);
   }
 
   .page-hero,
@@ -1852,7 +1858,7 @@ td strong {
 
   td .table-actions {
     grid-template-columns: 1fr;
-    min-width: 170px;
+    min-width: 0;
   }
 
   td .table-actions .action-btn {
@@ -1883,6 +1889,54 @@ td strong {
 
   .preview-image {
     height: 160px;
+  }
+}
+
+@media (max-width: 700px) {
+  .events-table-wrapper {
+    overflow: visible;
+  }
+
+  .events-overview table,
+  .events-overview thead,
+  .events-overview tbody,
+  .events-overview tr,
+  .events-overview td {
+    display: block;
+    width: 100%;
+  }
+
+  .events-overview thead {
+    display: none;
+  }
+
+  .events-overview tr {
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+  }
+
+  .events-overview td {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #edf2f7;
+  }
+
+  .events-overview td:last-child {
+    border-bottom: 0;
+  }
+
+  .events-overview td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 }
 

@@ -180,16 +180,6 @@
               </option>
             </select>
 
-            <label for="transportOption">Vervoer</label>
-            <select id="transportOption" v-model="transportOption">
-              <option value="">Kies vervoer</option>
-              <option value="own_transport">
-                Ik heb eigen vervoer naar de conferentie
-              </option>
-              <option value="bus">
-                Ik maak graag gebruik van de bus tegen aanvullende kosten
-              </option>
-            </select>
           </div>
 
           <div v-else class="registration-summary">
@@ -204,10 +194,6 @@
             <div>
               <span>Shirtmaat</span>
               <strong>{{ shirtSize || '-' }}</strong>
-            </div>
-            <div>
-              <span>Vervoer</span>
-              <strong>{{ transportOptionText(transportOption) }}</strong>
             </div>
           </div>
 
@@ -327,7 +313,6 @@ const paymentStatus = ref('')
 const registrationStatus = ref('')
 const proofPreview = ref('')
 const shirtSize = ref('')
-const transportOption = ref('')
 const selectedDays = ref([1])
 const showPartialDaySelector = ref(false)
 
@@ -478,7 +463,6 @@ async function loadProfileDefaults() {
   if (!profile) return
 
   shirtSize.value = profile.shirt_size || ''
-  transportOption.value = profile.transport_option || ''
 }
 
 async function checkExistingRegistration() {
@@ -494,7 +478,6 @@ async function checkExistingRegistration() {
   paymentStatus.value = existingRegistration.paymentStatus
   registrationStatus.value = existingRegistration.registrationStatus
   shirtSize.value = existingRegistration.shirtSize || ''
-  transportOption.value = existingRegistration.transportOption || ''
   selectedDays.value = parseSelectedDays(existingRegistration.selectedDays)
 }
 
@@ -508,8 +491,8 @@ async function handleRegister() {
   message.value = ''
 
   try {
-    if (!shirtSize.value || !transportOption.value) {
-      throw new Error('Kies je shirtmaat en vervoer voordat je inschrijft.')
+    if (!shirtSize.value) {
+      throw new Error('Kies je shirtmaat voordat je inschrijft.')
     }
 
     if (selectedDays.value.length === 0) {
@@ -518,7 +501,7 @@ async function handleRegister() {
 
     const result = await createRegistration(event.value.id, {
       shirtSize: shirtSize.value,
-      transportOption: transportOption.value,
+      transportOption: '',
       selectedDays: selectedDays.value
     })
 
@@ -578,13 +561,6 @@ function addDays(value, amount) {
   const date = new Date(value)
   date.setDate(date.getDate() + amount)
   return date
-}
-
-function transportOptionText(option) {
-  if (option === 'own_transport') return 'Eigen vervoer'
-  if (option === 'bus') return 'Bus tegen aanvullende kosten'
-
-  return '-'
 }
 
 function compressPaymentProof(file, maxWidth = 900, quality = 0.65) {
@@ -652,13 +628,13 @@ async function handlePaymentProofChange(eventInput) {
 <style scoped>
 .event-detail {
   min-height: 100vh;
-  background: #f8fafc;
+  background: #f7f4ee;
 }
 
 /* HERO */
 .event-hero {
   position: relative;
-  min-height: 520px;
+  min-height: 560px;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -684,13 +660,16 @@ async function handlePaymentProofChange(eventInput) {
 .event-hero__content {
   position: relative;
   z-index: 2;
-  width: min(1180px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: 0 auto;
   padding: 80px 0 64px;
 }
 
 .back-link {
   display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 2px;
   margin-bottom: 28px;
   color: rgba(255, 255, 255, 0.78);
   font-weight: 900;
@@ -705,7 +684,7 @@ async function handlePaymentProofChange(eventInput) {
   display: inline-flex;
   margin-bottom: 18px;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
   font-size: 0.78rem;
@@ -732,7 +711,7 @@ async function handlePaymentProofChange(eventInput) {
 
 .event-hero__meta span {
   padding: 10px 14px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.12);
   color: #e2e8f0;
   font-weight: 800;
@@ -741,8 +720,8 @@ async function handlePaymentProofChange(eventInput) {
 
 /* INFO STRIP */
 .event-info-strip {
-  width: min(1180px, 92%);
-  margin: -42px auto 0;
+  width: min(1280px, calc(100% - 56px));
+  margin: -40px auto 0;
   position: relative;
   z-index: 5;
   display: grid;
@@ -752,10 +731,10 @@ async function handlePaymentProofChange(eventInput) {
 
 .event-info-strip div {
   padding: 22px;
-  border-radius: 24px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
 }
 
 .event-info-strip span,
@@ -777,7 +756,7 @@ async function handlePaymentProofChange(eventInput) {
 
 /* CONTENT */
 .event-content {
-  width: min(1180px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: 44px auto 0;
   padding-bottom: 80px;
   display: grid;
@@ -821,14 +800,14 @@ async function handlePaymentProofChange(eventInput) {
 
 .event-details-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-top: 34px;
 }
 
 .event-details-grid div {
-  padding: 22px;
-  border-radius: 22px;
+  padding: 18px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
 }
@@ -845,10 +824,10 @@ async function handlePaymentProofChange(eventInput) {
 .register-panel,
 .payment-panel {
   padding: 28px;
-  border-radius: 28px;
+  border-radius: 14px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
 }
 
 .register-panel h3,
@@ -883,19 +862,21 @@ async function handlePaymentProofChange(eventInput) {
 
 .registration-options select {
   width: 100%;
-  min-height: 48px;
-  padding: 0 14px;
+  min-height: 52px;
+  padding: 0 15px;
   border: 1px solid #cbd5e1;
-  border-radius: 14px;
-  background: #ffffff;
+  border-radius: 10px;
+  background: #f8fafc;
   color: #0f172a;
   font: inherit;
   font-weight: 800;
+  transition: 0.18s ease;
 }
 
 .registration-options select:focus {
   outline: 3px solid rgba(37, 99, 235, 0.18);
   border-color: #2563eb;
+  background: #ffffff;
 }
 
 .attendance-choice {
@@ -905,12 +886,13 @@ async function handlePaymentProofChange(eventInput) {
 
 .full-event-choice {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 16px;
-  border: 1px solid #bfdbfe;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #eff6ff, #ffffff);
+  padding: 18px;
+  border: 1px solid #93c5fd;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eff6ff, #ffffff 76%);
 }
 
 .full-event-choice strong,
@@ -947,9 +929,10 @@ async function handlePaymentProofChange(eventInput) {
 
 .choice-link {
   width: 100%;
-  padding: 11px 12px;
-  border: 1px dashed #cbd5e1;
-  border-radius: 14px;
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
   background: #ffffff;
   color: #2563eb;
   font-weight: 900;
@@ -963,9 +946,9 @@ async function handlePaymentProofChange(eventInput) {
 .day-choice-panel {
   display: grid;
   gap: 14px;
-  padding: 16px;
+  padding: 18px;
   border: 1px solid #dbe3ee;
-  border-radius: 16px;
+  border-radius: 12px;
   background: #f8fafc;
 }
 
@@ -988,10 +971,10 @@ async function handlePaymentProofChange(eventInput) {
 .day-choice-grid button {
   display: grid;
   gap: 4px;
-  min-height: 76px;
+  min-height: 82px;
   padding: 12px;
   border: 1px solid #dbe3ee;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #ffffff;
   text-align: left;
   transition: 0.2s ease;
@@ -1012,7 +995,7 @@ async function handlePaymentProofChange(eventInput) {
 
 .registration-summary div {
   padding: 14px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
 }
@@ -1031,8 +1014,9 @@ async function handlePaymentProofChange(eventInput) {
   justify-content: center;
   width: 100%;
   margin-top: 16px;
+  min-height: 52px;
   padding: 14px 18px;
-  border-radius: 16px;
+  border-radius: 10px;
   font-weight: 900;
   text-decoration: none;
   transition: 0.2s ease;
@@ -1063,8 +1047,9 @@ async function handlePaymentProofChange(eventInput) {
   justify-content: center;
   width: 100%;
   margin-top: 16px;
+  min-height: 52px;
   padding: 14px 18px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: #16a34a;
   color: white;
   font-weight: 900;
@@ -1079,7 +1064,7 @@ async function handlePaymentProofChange(eventInput) {
 .qr-wrapper img {
   width: 190px;
   max-width: 100%;
-  border-radius: 18px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
   background: white;
 }
@@ -1087,7 +1072,7 @@ async function handlePaymentProofChange(eventInput) {
 .payment-contact {
   margin-top: 18px;
   padding: 16px;
-  border-radius: 18px;
+  border-radius: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
 }
@@ -1118,7 +1103,7 @@ async function handlePaymentProofChange(eventInput) {
 .proof-preview {
   width: 100%;
   margin-top: 12px;
-  border-radius: 16px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
 }
 
@@ -1126,6 +1111,10 @@ async function handlePaymentProofChange(eventInput) {
 @media (max-width: 1000px) {
   .event-info-strip {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .event-details-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .event-content {
@@ -1143,7 +1132,8 @@ async function handlePaymentProofChange(eventInput) {
   }
 
   .event-hero h1 {
-    font-size: 3.2rem;
+    font-size: 2.55rem;
+    letter-spacing: -0.05em;
   }
 
   .event-info-strip,
@@ -1151,8 +1141,35 @@ async function handlePaymentProofChange(eventInput) {
     grid-template-columns: 1fr;
   }
 
+  .event-hero__content,
+  .event-info-strip,
+  .event-content {
+    width: calc(100% - 28px);
+  }
+
   .event-content {
     margin-top: 34px;
+    gap: 24px;
+  }
+
+  .event-main h2 {
+    font-size: 2rem;
+  }
+
+  .register-panel,
+  .payment-panel {
+    padding: 20px;
+  }
+
+  .full-event-choice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .choice-price {
+    width: 100%;
+    padding-top: 10px;
+    border-top: 1px solid #bfdbfe;
   }
 }
 </style>

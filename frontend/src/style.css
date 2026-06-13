@@ -277,9 +277,10 @@ textarea {
     align-items: center;
     justify-content: center;
     gap: 8px;
+    min-height: 46px;
     padding: 12px 18px;
-    border-radius: 999px;
-    font-weight: 600;
+    border-radius: 10px;
+    font-weight: 900;
     transition: 0.2s ease;
 }
 
@@ -348,9 +349,10 @@ input,
 textarea {
     width: 100%;
     border: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.95);
+    background: #f8fafc;
     color: var(--text);
-    border-radius: 14px;
+    border-radius: 10px;
+    min-height: 50px;
     padding: 13px 15px;
     outline: none;
     transition: 0.2s ease;
@@ -368,6 +370,7 @@ select:focus,
 input:focus,
 textarea:focus {
     border-color: rgba(37, 99, 235, 0.45);
+    background: #ffffff;
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 

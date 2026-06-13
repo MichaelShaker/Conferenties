@@ -4,13 +4,12 @@
     <!-- HERO -->
     <section class="events-hero">
       <div class="events-hero__content">
-        <p class="events-hero__eyebrow">Event collectie</p>
+        <p class="events-hero__eyebrow">Conferenties</p>
 
-        <h1>Ontdek events die bij jou passen.</h1>
+        <h1>Kies rustig waar je bij wilt zijn.</h1>
 
         <p>
-          Bekijk een zorgvuldig gekozen selectie van conferenties,
-          bijeenkomsten en ervaringen.
+          Alle conferenties op een plek, met duidelijke data, prijzen en aanmeldstappen.
         </p>
       </div>
 
@@ -124,9 +123,10 @@ onMounted(async () => {
 
 <style scoped>
 .events-view {
-  width: min(1180px, 92%);
-  margin: 0 auto;
-  padding: 42px 0 72px;
+  width: 100%;
+  min-height: 100vh;
+  padding: 0 0 72px;
+  background: #f7f4ee;
 }
 
 /* HERO */
@@ -137,35 +137,25 @@ onMounted(async () => {
   grid-template-columns: 1fr auto;
   align-items: end;
   gap: 32px;
-  margin-bottom: 28px;
-  padding: 58px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 36px;
+  min-height: 430px;
+  margin-bottom: 0;
+  padding: 118px max(4vw, 30px) 72px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   background:
-      radial-gradient(circle at 88% 18%, rgba(37, 99, 235, 0.16), transparent 32%),
-      linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #eef4ff 100%);
-  box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
-}
-
-.events-hero::after {
-  content: "";
-  position: absolute;
-  right: -80px;
-  bottom: -110px;
-  width: 280px;
-  height: 280px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
+      linear-gradient(90deg, rgba(9, 17, 34, 0.92), rgba(9, 17, 34, 0.54) 52%, rgba(9, 17, 34, 0.38)),
+      linear-gradient(0deg, rgba(9, 17, 34, 0.68), rgba(9, 17, 34, 0.18)),
+      url('../assets/home.png') center / cover;
 }
 
 .events-hero__content {
   position: relative;
   z-index: 2;
+  width: min(760px, 100%);
 }
 
 .events-hero__eyebrow {
   margin-bottom: 14px;
-  color: #2563eb;
+  color: #7dd3fc;
   font-size: 0.78rem;
   font-weight: 900;
   letter-spacing: 0.18em;
@@ -175,7 +165,7 @@ onMounted(async () => {
 .events-hero h1 {
   max-width: 780px;
   margin-bottom: 18px;
-  color: #0f172a;
+  color: #ffffff;
   font-size: clamp(3rem, 6vw, 5.4rem);
   line-height: 0.94;
   letter-spacing: -0.075em;
@@ -183,7 +173,7 @@ onMounted(async () => {
 
 .events-hero p {
   max-width: 620px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.82);
   font-size: 1.05rem;
   line-height: 1.8;
 }
@@ -197,10 +187,12 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 32px;
-  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.72);
   color: white;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.22);
+  backdrop-filter: blur(14px);
 }
 
 .events-hero__counter strong {
@@ -218,17 +210,20 @@ onMounted(async () => {
 
 /* FILTERS */
 .filters-panel {
+  width: min(1280px, calc(100% - 56px));
   display: grid;
-  grid-template-columns: minmax(260px, 420px) 1fr;
+  grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
   align-items: end;
   gap: 22px;
-  margin-bottom: 36px;
+  margin: -34px auto 42px;
   padding: 22px;
   border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.86);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
   backdrop-filter: blur(14px);
+  position: relative;
+  z-index: 5;
 }
 
 .search-field label {
@@ -241,11 +236,11 @@ onMounted(async () => {
 
 .search-field input {
   width: 100%;
-  height: 52px;
+  min-height: 52px;
   padding: 0 18px;
   border: 1px solid #dbe4f0;
-  border-radius: 18px;
-  background: #ffffff;
+  border-radius: 10px;
+  background: #f8fafc;
   color: #0f172a;
   outline: none;
   transition: 0.2s ease;
@@ -253,6 +248,7 @@ onMounted(async () => {
 
 .search-field input:focus {
   border-color: #2563eb;
+  background: #ffffff;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
@@ -264,8 +260,9 @@ onMounted(async () => {
 }
 
 .category-chips button {
+  min-height: 44px;
   padding: 12px 16px;
-  border-radius: 999px;
+  border-radius: 10px;
   background: #f1f5f9;
   color: #475569;
   font-size: 0.88rem;
@@ -286,6 +283,8 @@ onMounted(async () => {
 
 /* EVENTS */
 .events-layout {
+  width: min(1280px, calc(100% - 56px));
+  margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 26px;
@@ -294,10 +293,12 @@ onMounted(async () => {
 
 /* STATES */
 .state-box {
+  width: min(1280px, calc(100% - 56px));
+  margin: 0 auto;
   padding: 70px 28px;
   text-align: center;
   border: 1px solid #e2e8f0;
-  border-radius: 32px;
+  border-radius: 14px;
   background:
       radial-gradient(circle at top, rgba(37, 99, 235, 0.09), transparent 34%),
       #ffffff;
@@ -336,8 +337,13 @@ onMounted(async () => {
   }
 
   .events-hero__counter {
-    width: 130px;
-    height: 130px;
+    width: 100%;
+    height: auto;
+    min-height: 88px;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 18px;
   }
 
   .filters-panel {
@@ -347,17 +353,17 @@ onMounted(async () => {
 
 @media (max-width: 620px) {
   .events-view {
-    width: min(100%, 92%);
-    padding-top: 26px;
+    padding-bottom: 48px;
   }
 
   .events-hero {
-    border-radius: 28px;
-    padding: 34px 24px;
+    min-height: 390px;
+    padding: 96px 20px 58px;
   }
 
   .events-hero h1 {
-    font-size: 3.1rem;
+    font-size: 2.55rem;
+    letter-spacing: -0.05em;
   }
 
   .events-layout {
@@ -365,7 +371,15 @@ onMounted(async () => {
   }
 
   .filters-panel {
-    border-radius: 24px;
+    width: calc(100% - 28px);
+    margin-top: -24px;
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .events-layout,
+  .state-box {
+    width: calc(100% - 28px);
   }
 }
 </style>

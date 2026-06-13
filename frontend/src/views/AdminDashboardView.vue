@@ -5,17 +5,17 @@
       <div class="admin-hero__content">
         <p class="eyebrow">Admin dashboard</p>
 
-        <h1>Beheer events, registraties en betalingen.</h1>
+        <h1>Beheer conferenties zonder ruis.</h1>
 
         <p>
-          Hier krijg je snel overzicht over wat belangrijk is: nieuwe aanmeldingen,
-          openstaande betalingen en acties die aandacht nodig hebben.
+          Alles wat je hier nodig hebt draait om events aanmaken, aanmeldingen controleren
+          en de praktische lijsten klaarzetten.
         </p>
       </div>
 
       <div class="admin-hero__badge">
         <strong>Admin</strong>
-        <span>beheeromgeving</span>
+        <span>events en registraties</span>
       </div>
     </section>
 
@@ -54,9 +54,7 @@
             <div>
               <span>01</span>
               <h3>Events beheren</h3>
-              <p>
-                Voeg events toe, wijzig informatie, stel prijzen in en beheer capaciteit.
-              </p>
+              <p>Maak events aan, wijzig informatie, stel dagprijzen in en beheer capaciteit.</p>
             </div>
 
             <b>→</b>
@@ -65,30 +63,8 @@
           <RouterLink to="/admin/registrations" class="admin-action">
             <div>
               <span>02</span>
-              <h3>Registraties beheren</h3>
-              <p>
-                Bekijk aanmeldingen, controleer betalingen en werk registratiestatussen bij.
-              </p>
-            </div>
-
-            <b>→</b>
-          </RouterLink>
-
-          <RouterLink to="/admin/users" class="admin-action">
-            <div>
-              <span>03</span>
-              <h3>Gebruikers beheren</h3>
-              <p>Bekijk profielen, rollen, emailvoorkeuren en registraties per gebruiker.</p>
-            </div>
-
-            <b>→</b>
-          </RouterLink>
-
-          <RouterLink to="/admin/audit" class="admin-action">
-            <div>
-              <span>04</span>
-              <h3>Audit log</h3>
-              <p>Controleer wie events, registraties en gebruikers heeft aangepast.</p>
+              <h3>Registraties controleren</h3>
+              <p>Keur betalingen goed of af en open deelnemerslijsten wanneer je ze nodig hebt.</p>
             </div>
 
             <b>→</b>
@@ -96,7 +72,7 @@
 
           <RouterLink to="/admin/email-logs" class="admin-action">
             <div>
-              <span>05</span>
+              <span>03</span>
               <h3>Email geschiedenis</h3>
               <p>Zie welke mails zijn verstuurd en welke eventueel mislukt zijn.</p>
             </div>
@@ -106,7 +82,7 @@
 
           <RouterLink to="/admin/status" class="admin-action">
             <div>
-              <span>06</span>
+              <span>04</span>
               <h3>Systeemstatus</h3>
               <p>Controleer database, emailconfiguratie, Google Sheets en recente fouten.</p>
             </div>
@@ -115,32 +91,6 @@
           </RouterLink>
         </div>
       </div>
-
-      <aside class="admin-sidebar">
-        <h2>Admin aandachtspunten</h2>
-
-        <div class="check-list">
-          <div>
-            <strong>Controleer nieuwe registraties</strong>
-            <p>Kijk regelmatig of er nieuwe aanmeldingen zijn binnengekomen.</p>
-          </div>
-
-          <div>
-            <strong>Betaalbewijzen nakijken</strong>
-            <p>Bevestig alleen registraties wanneer de betaling klopt.</p>
-          </div>
-
-          <div>
-            <strong>Capaciteit bewaken</strong>
-            <p>Controleer of events niet over hun maximum aantal deelnemers gaan.</p>
-          </div>
-
-          <div>
-            <strong>Eventinformatie actueel houden</strong>
-            <p>Zorg dat datum, locatie, prijs en instructies duidelijk zijn.</p>
-          </div>
-        </div>
-      </aside>
     </section>
   </main>
 </template>
@@ -151,7 +101,7 @@
 <style scoped>
 .admin-dashboard {
   min-height: 100vh;
-  background: #f8fafc;
+  background: #f7f4ee;
   padding-bottom: 80px;
 }
 
@@ -166,20 +116,9 @@
   gap: 40px;
   padding: 90px max(4vw, 32px) 70px;
   background:
-      radial-gradient(circle at 86% 16%, rgba(37, 99, 235, 0.18), transparent 30%),
-      linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #eef4ff 100%);
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.admin-hero::after {
-  content: "";
-  position: absolute;
-  right: -120px;
-  bottom: -150px;
-  width: 360px;
-  height: 360px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
+      linear-gradient(90deg, rgba(9, 17, 34, 0.9), rgba(9, 17, 34, 0.58)),
+      url('../assets/home.png') center / cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .admin-hero__content {
@@ -199,7 +138,7 @@
 
 .admin-hero h1 {
   margin-bottom: 18px;
-  color: #0f172a;
+  color: #ffffff;
   font-size: clamp(3rem, 6vw, 5.8rem);
   line-height: 0.92;
   letter-spacing: -0.08em;
@@ -207,7 +146,7 @@
 
 .admin-hero p {
   max-width: 680px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.78);
   font-size: 1.08rem;
   line-height: 1.8;
 }
@@ -220,8 +159,9 @@
   display: grid;
   place-items: center;
   text-align: center;
-  border-radius: 36px;
-  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.68);
   color: white;
   box-shadow: 0 24px 55px rgba(15, 23, 42, 0.22);
 }
@@ -244,7 +184,7 @@
 .admin-stats {
   position: relative;
   z-index: 3;
-  width: min(1180px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: -42px auto 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -253,7 +193,7 @@
 
 .stat-card {
   padding: 24px;
-  border-radius: 24px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.09);
@@ -294,12 +234,8 @@
 
 /* CONTENT */
 .admin-content {
-  width: min(1180px, 92%);
+  width: min(1280px, calc(100% - 56px));
   margin: 46px auto 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 34px;
-  align-items: start;
 }
 
 .section-heading {
@@ -320,6 +256,7 @@
 
 .admin-actions {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -329,7 +266,7 @@
   justify-content: space-between;
   gap: 22px;
   padding: 28px;
-  border-radius: 28px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   color: #0f172a;
@@ -380,53 +317,10 @@
   font-size: 1.8rem;
 }
 
-/* SIDEBAR */
-.admin-sidebar {
-  position: sticky;
-  top: 110px;
-  padding: 28px;
-  border-radius: 28px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
-}
-
-.admin-sidebar h2 {
-  margin-bottom: 20px;
-  color: #0f172a;
-  font-size: 1.45rem;
-  letter-spacing: -0.04em;
-}
-
-.check-list {
-  display: grid;
-  gap: 16px;
-}
-
-.check-list div {
-  padding-left: 16px;
-  border-left: 3px solid #2563eb;
-}
-
-.check-list strong {
-  display: block;
-  margin-bottom: 4px;
-  color: #0f172a;
-}
-
-.check-list p {
-  color: #64748b;
-  line-height: 1.7;
-}
-
 /* RESPONSIVE */
 @media (max-width: 1000px) {
-  .admin-content {
+  .admin-actions {
     grid-template-columns: 1fr;
-  }
-
-  .admin-sidebar {
-    position: static;
   }
 }
 
@@ -437,9 +331,13 @@
   }
 
   .admin-hero__badge {
-    width: 125px;
-    height: 125px;
-    border-radius: 30px;
+    width: 100%;
+    height: auto;
+    min-height: 88px;
+    display: flex;
+    justify-content: space-between;
+    padding: 18px;
+    border-radius: 14px;
   }
 
   .admin-stats {
@@ -453,12 +351,18 @@
   }
 
   .admin-hero h1 {
-    font-size: 3rem;
+    font-size: 2.55rem;
+    letter-spacing: -0.05em;
   }
 
   .admin-action {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .admin-stats,
+  .admin-content {
+    width: calc(100% - 28px);
   }
 }
 </style>
