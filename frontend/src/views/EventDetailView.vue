@@ -180,6 +180,13 @@
               </option>
             </select>
 
+            <label for="transportOption">Vervoer</label>
+            <select id="transportOption" v-model="transportOption">
+              <option value="">Kies je vervoer</option>
+              <option value="own_transport">Eigen vervoer</option>
+              <option value="bus">Bus tegen aanvullende kosten</option>
+            </select>
+
           </div>
 
           <div v-else class="registration-summary">
@@ -194,6 +201,10 @@
             <div>
               <span>Shirtmaat</span>
               <strong>{{ shirtSize || '-' }}</strong>
+            </div>
+            <div>
+              <span>Vervoer</span>
+              <strong>{{ transportOptionText(transportOption) }}</strong>
             </div>
           </div>
 
@@ -313,6 +324,7 @@ const paymentStatus = ref('')
 const registrationStatus = ref('')
 const proofPreview = ref('')
 const shirtSize = ref('')
+const transportOption = ref('')
 const selectedDays = ref([1])
 const showPartialDaySelector = ref(false)
 
@@ -415,6 +427,14 @@ function formatDate(value) {
     year: 'numeric'
   })
 }
+
+function transportOptionText(option) {
+  if (option === 'own_transport') return 'Eigen vervoer'
+  if (option === 'bus') return 'Bus tegen aanvullende kosten'
+
+  return '-'
+}
+
 const ageText = computed(() => {
   const min = event.value?.minAge
   const max = event.value?.maxAge
@@ -478,6 +498,7 @@ async function checkExistingRegistration() {
   paymentStatus.value = existingRegistration.paymentStatus
   registrationStatus.value = existingRegistration.registrationStatus
   shirtSize.value = existingRegistration.shirtSize || ''
+  transportOption.value = existingRegistration.transportOption || ''
   selectedDays.value = parseSelectedDays(existingRegistration.selectedDays)
 }
 
@@ -491,8 +512,8 @@ async function handleRegister() {
   message.value = ''
 
   try {
-    if (!shirtSize.value) {
-      throw new Error('Kies je shirtmaat voordat je inschrijft.')
+    if (!shirtSize.value || !transportOption.value) {
+      throw new Error('Kies je shirtmaat en vervoer voordat je inschrijft.')
     }
 
     if (selectedDays.value.length === 0) {
@@ -501,7 +522,7 @@ async function handleRegister() {
 
     const result = await createRegistration(event.value.id, {
       shirtSize: shirtSize.value,
-      transportOption: '',
+      transportOption: transportOption.value,
       selectedDays: selectedDays.value
     })
 

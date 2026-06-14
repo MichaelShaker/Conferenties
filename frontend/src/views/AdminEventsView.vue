@@ -466,18 +466,6 @@
                   Bewerken
                 </button>
 
-                <button class="action-btn action-btn--mail" @click="resendEventMail(event)">
-                  Mail opnieuw
-                </button>
-
-                <button class="action-btn action-btn--neutral" @click="sendTestMail(event)">
-                  Test mail
-                </button>
-
-                <button class="action-btn action-btn--neutral" @click="syncEventSheet(event)">
-                  Sheet sync
-                </button>
-
                 <a
                     v-if="event.googleSheetUrl"
                     class="action-btn action-btn--sheet"
@@ -486,6 +474,10 @@
                 >
                   Open Sheet
                 </a>
+
+                <button class="action-btn action-btn--sheet" @click="downloadEventList(event)">
+                  Download lijst
+                </button>
               </div>
             </td>
           </tr>
@@ -503,9 +495,7 @@ import {
   fetchConferences,
   createConference,
   updateConference,
-  resendConferenceEmail,
-  sendConferenceTestEmail,
-  syncGoogleSheetForEvent,
+  exportApprovedUsersCsv,
   deleteConference,
   fetchChurches
 } from '../services/api'
@@ -1036,48 +1026,11 @@ function eventPriceSummary(event) {
   return `€${Number(price).toFixed(2)}`
 }
 
-async function resendEventMail(event) {
+async function downloadEventList(event) {
   try {
-    const response = await resendConferenceEmail(event.id)
-
+    await exportApprovedUsersCsv(event.id, event.title)
     success.value = true
-    message.value = `Email opnieuw verstuurd naar ${response.data.sentCount} gebruikers.`
-  } catch (error) {
-    success.value = false
-    message.value = error.message
-  }
-}
-
-async function sendTestMail(event) {
-  try {
-    const response = await sendConferenceTestEmail(event.id)
-
-    success.value = true
-    message.value = `Testmail verstuurd naar ${response.data.email}.`
-  } catch (error) {
-    success.value = false
-    message.value = error.message
-  }
-}
-
-async function syncEventSheet(event) {
-  try {
-    const response = await syncGoogleSheetForEvent(event.id)
-
-    events.value = events.value.map(existingEvent => (
-      existingEvent.id === event.id
-        ? {
-          ...existingEvent,
-          googleSheetId: response.spreadsheetId || existingEvent.googleSheetId,
-          googleSheetUrl: response.spreadsheetUrl || existingEvent.googleSheetUrl,
-          googleSheetLastSyncedAt: new Date().toISOString(),
-          googleSheetLastError: null
-        }
-        : existingEvent
-    ))
-
-    success.value = true
-    message.value = `Sheet bijgewerkt met ${response.rowCount} registraties.`
+    message.value = `Deelnemerslijst voor ${event.title} gedownload.`
   } catch (error) {
     success.value = false
     message.value = error.message

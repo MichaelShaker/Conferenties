@@ -188,6 +188,7 @@
                 <th>E-mail</th>
                 <th>Telefoon</th>
                 <th>Shirtmaat</th>
+                <th>Vervoer</th>
                 <th>Dagen</th>
                 <th>Kerk</th>
                 <th>Status</th>
@@ -201,6 +202,7 @@
                 <td>{{ registration.userEmail }}</td>
                 <td>{{ registration.userPhone || '-' }}</td>
                 <td>{{ registration.shirtSize || '-' }}</td>
+                <td>{{ transportOptionText(registration.transportOption) }}</td>
                 <td>{{ formatSelectedDays(registration.selectedDays) }}</td>
                 <td>{{ registration.churchName || '-' }}</td>
                 <td>{{ registrationStatusText(registration.registrationStatus) }}</td>
@@ -239,6 +241,61 @@
             <strong>{{ tab.count }}</strong>
           </button>
         </div>
+
+        <div class="registration-filterbar">
+          <label class="search-field">
+            <span>Zoeken</span>
+            <input
+                v-model.trim="registrationFilters.search"
+                type="search"
+                placeholder="Naam, e-mail of telefoon"
+            />
+          </label>
+
+          <label>
+            <span>Event</span>
+            <select v-model="registrationFilters.eventId">
+              <option value="">Alle events</option>
+              <option v-for="event in eventSummaries" :key="event.id" :value="String(event.id)">
+                {{ event.title }}
+              </option>
+            </select>
+          </label>
+
+          <label>
+            <span>Vervoer</span>
+            <select v-model="registrationFilters.transport">
+              <option value="">Alle vervoer</option>
+              <option value="own_transport">Eigen vervoer</option>
+              <option value="bus">Bus</option>
+              <option value="missing">Niet ingevuld</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Dagen</span>
+            <select v-model="registrationFilters.dayCount">
+              <option value="">Alle dagen</option>
+              <option value="1">1 dag</option>
+              <option value="2">2 dagen</option>
+              <option value="3">3 dagen</option>
+              <option value="full">Volledig event</option>
+            </select>
+          </label>
+
+          <button
+              type="button"
+              class="clear-filters-button"
+              :disabled="!hasActiveRegistrationFilters"
+              @click="clearRegistrationFilters"
+          >
+            Wissen
+          </button>
+        </div>
+
+        <p class="filter-result-count">
+          {{ filteredRegistrations.length }} van {{ tabFilteredRegistrations.length }} registraties zichtbaar
+        </p>
 
         <div class="table-wrapper">
           <table>
@@ -347,6 +404,11 @@
             </div>
 
             <div>
+              <span>Vervoer</span>
+              <strong>{{ transportOptionText(selectedRegistration.transportOption) }}</strong>
+            </div>
+
+            <div>
               <span>Kerk</span>
               <strong>{{ selectedRegistration.churchName || '-' }}</strong>
             </div>
@@ -441,6 +503,12 @@ const selectedEventId = ref('')
 const selectedRegistration = ref(null)
 const activeRegistrationTab = ref('pending')
 const showApprovedLists = ref(false)
+const registrationFilters = ref({
+  search: '',
+  eventId: '',
+  transport: '',
+  dayCount: ''
+})
 const googleLoading = ref(false)
 const googleStatus = ref({
   connected: false,
@@ -502,7 +570,7 @@ const activeTabLabel = computed(() => {
   return registrationTabs.value.find(tab => tab.id === activeRegistrationTab.value)?.label || 'Registraties'
 })
 
-const filteredRegistrations = computed(() => {
+const tabFilteredRegistrations = computed(() => {
   if (activeRegistrationTab.value === 'approved') {
     return registrations.value.filter(isApprovedRegistration)
   }
@@ -516,6 +584,56 @@ const filteredRegistrations = computed(() => {
   }
 
   return registrations.value
+})
+
+const hasActiveRegistrationFilters = computed(() => {
+  return Object.values(registrationFilters.value).some(value => String(value || '').trim() !== '')
+})
+
+const filteredRegistrations = computed(() => {
+  const searchTerm = registrationFilters.value.search.trim().toLowerCase()
+  const eventId = registrationFilters.value.eventId
+  const transport = registrationFilters.value.transport
+  const dayCount = registrationFilters.value.dayCount
+
+  return tabFilteredRegistrations.value.filter(registration => {
+    if (searchTerm) {
+      const searchable = [
+        registration.userName,
+        registration.userEmail,
+        registration.userPhone,
+        registration.eventTitle,
+        registration.churchName
+      ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+
+      if (!searchable.includes(searchTerm)) return false
+    }
+
+    if (eventId && String(registration.eventId) !== eventId) {
+      return false
+    }
+
+    if (transport === 'missing') {
+      if (registration.transportOption) return false
+    } else if (transport && registration.transportOption !== transport) {
+      return false
+    }
+
+    if (dayCount) {
+      const count = selectedDayCount(registration)
+
+      if (dayCount === 'full') {
+        if (registration.selectedDays) return false
+      } else if (count !== Number(dayCount)) {
+        return false
+      }
+    }
+
+    return true
+  })
 })
 
 const eventSummaries = computed(() => {
@@ -705,6 +823,34 @@ function formatSelectedDays(value) {
       .split(',')
       .map(day => `Dag ${day.trim()}`)
       .join(', ')
+}
+
+function selectedDayCount(registration) {
+  if (registration.selectedDayCount) return Number(registration.selectedDayCount)
+
+  if (!registration.selectedDays) return 0
+
+  return String(registration.selectedDays)
+      .split(',')
+      .map(day => day.trim())
+      .filter(Boolean)
+      .length
+}
+
+function transportOptionText(option) {
+  if (option === 'own_transport') return 'Eigen vervoer'
+  if (option === 'bus') return 'Bus tegen aanvullende kosten'
+
+  return '-'
+}
+
+function clearRegistrationFilters() {
+  registrationFilters.value = {
+    search: '',
+    eventId: '',
+    transport: '',
+    dayCount: ''
+  }
 }
 
 function isApprovedRegistration(registration) {
@@ -1219,6 +1365,77 @@ async function exportCsvForEvent(registration) {
   color: #ffffff;
 }
 
+.registration-filterbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.registration-filterbar label {
+  display: grid;
+  gap: 7px;
+}
+
+.registration-filterbar span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.registration-filterbar input,
+.registration-filterbar select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 800;
+}
+
+.registration-filterbar input:focus,
+.registration-filterbar select:focus {
+  outline: 3px solid rgba(37, 99, 235, 0.16);
+  border-color: #2563eb;
+}
+
+.clear-filters-button {
+  min-height: 44px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 9px;
+  background: #e2e8f0;
+  color: #334155;
+  font-weight: 900;
+}
+
+.clear-filters-button:not(:disabled):hover {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.clear-filters-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.filter-result-count {
+  margin-bottom: 14px;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
 .event-export-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1699,6 +1916,15 @@ td strong {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .registration-filterbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .registration-filterbar .search-field,
+  .clear-filters-button {
+    grid-column: 1 / -1;
+  }
+
   .detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1770,6 +1996,22 @@ td strong {
   .payment-method-select {
     width: 100%;
     min-width: 150px;
+  }
+
+  .registration-filterbar {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .registration-filterbar .search-field,
+  .clear-filters-button {
+    grid-column: auto;
+  }
+
+  .registration-filterbar input,
+  .registration-filterbar select,
+  .clear-filters-button {
+    min-height: 48px;
   }
 
   .registrations-panel .table-wrapper {

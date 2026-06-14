@@ -78,6 +78,11 @@
             </div>
 
             <div>
+              <span>Vervoer</span>
+              <strong>{{ transportOptionText(registration.transportOption) }}</strong>
+            </div>
+
+            <div>
               <span>Betaalstatus</span>
               <strong>{{ registration.paymentStatus }}</strong>
             </div>
@@ -160,6 +165,13 @@ function formatSelectedDays(value) {
       .split(',')
       .map(day => `Dag ${day.trim()}`)
       .join(', ')
+}
+
+function transportOptionText(option) {
+  if (option === 'own_transport') return 'Eigen vervoer'
+  if (option === 'bus') return 'Bus tegen aanvullende kosten'
+
+  return '-'
 }
 
 onMounted(async () => {
