@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 
 async function createRegistration(userId, conferenceId, registrationDetails = {}) {
-    const { shirtSize, transportOption, selectedDays } = registrationDetails;
+    const { shirtSize, transportOption, selectedDays, selectedNights } = registrationDetails;
 
     const [userRows] = await pool.query(`
         SELECT id
@@ -98,6 +98,11 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
     const normalizedSelectedDays = conference.allowPartialDays
         ? normalizeSelectedDays(selectedDays, conference.maxEventDays)
         : getAllEventDays(conference.maxEventDays);
+    const normalizedSelectedNights = normalizeSelectedNights(
+        selectedNights,
+        conference.maxEventDays,
+        normalizedSelectedDays
+    );
 
     if (normalizedSelectedDays.length === 0) {
         return {
@@ -115,15 +120,16 @@ async function createRegistration(userId, conferenceId, registrationDetails = {}
     const [result] = await pool.query(`
         INSERT INTO registrations (
             user_id, conference_id, shirt_size, transport_option,
-            selected_days, selected_day_count, selected_price
+            selected_days, selected_nights, selected_day_count, selected_price
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [
         userId,
         conferenceId,
         shirtSize || null,
         transportOption || null,
         normalizedSelectedDays.join(","),
+        normalizedSelectedNights.join(",") || null,
         selectedDayCount,
         selectedPrice
     ]);
@@ -138,6 +144,23 @@ function normalizeSelectedDays(selectedDays, maxEventDays = 1) {
     return [...new Set(values
         .map(value => Number(value))
         .filter(value => Number.isInteger(value) && value >= 1 && value <= maxDays))]
+        .sort((a, b) => a - b);
+}
+
+function normalizeSelectedNights(selectedNights, maxEventDays = 1, selectedDays = []) {
+    const maxDays = Math.min(3, Math.max(1, Number(maxEventDays || 1)));
+    const selectedDaySet = new Set(selectedDays.map(value => Number(value)));
+    const values = Array.isArray(selectedNights) ? selectedNights : [];
+
+    return [...new Set(values
+        .map(value => Number(value))
+        .filter(value => {
+            return Number.isInteger(value)
+                && value >= 1
+                && value < maxDays
+                && selectedDaySet.has(value)
+                && selectedDaySet.has(value + 1);
+        }))]
         .sort((a, b) => a - b);
 }
 
@@ -169,6 +192,7 @@ async function getMyRegistrations(userId) {
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
             r.selected_days AS selectedDays,
+            r.selected_nights AS selectedNights,
             COALESCE(r.selected_day_count, 1) AS selectedDayCount,
             COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
@@ -202,6 +226,7 @@ async function getAllRegistrations() {
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
             r.selected_days AS selectedDays,
+            r.selected_nights AS selectedNights,
             COALESCE(r.selected_day_count, 1) AS selectedDayCount,
             COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
@@ -284,6 +309,10 @@ async function updateRegistrationStatus(id, paymentStatus, registrationStatus, a
             ? AS previousRegistrationStatus,
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
+            r.selected_days AS selectedDays,
+            r.selected_nights AS selectedNights,
+            COALESCE(r.selected_day_count, 1) AS selectedDayCount,
+            COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
             r.created_at,

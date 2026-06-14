@@ -172,6 +172,30 @@
               </p>
             </div>
 
+            <div v-if="nightOptions.length" class="night-choice-panel">
+              <div>
+                <strong>Overnachting</strong>
+                <span>Kies welke nacht(en) je blijft slapen. Laat leeg als je niet blijft slapen.</span>
+              </div>
+
+              <div class="night-choice-grid">
+                <button
+                    v-for="night in nightOptions"
+                    :key="night.value"
+                    type="button"
+                    :class="{ active: selectedNights.includes(night.value), disabled: !night.available }"
+                    @click="toggleSelectedNight(night.value)"
+                >
+                  <strong>{{ night.title }}</strong>
+                  <span>{{ night.label }}</span>
+                </button>
+              </div>
+
+              <p class="selected-price">
+                {{ attendanceSummaryText }}
+              </p>
+            </div>
+
             <label for="shirtSize">Shirtmaat</label>
             <select id="shirtSize" v-model="shirtSize">
               <option value="">Kies je maat</option>
@@ -193,6 +217,10 @@
             <div>
               <span>Dagen</span>
               <strong>{{ selectedDaysText }}</strong>
+            </div>
+            <div>
+              <span>Overnachting</span>
+              <strong>{{ selectedNightsText }}</strong>
             </div>
             <div>
               <span>Prijs</span>
@@ -326,6 +354,7 @@ const proofPreview = ref('')
 const shirtSize = ref('')
 const transportOption = ref('')
 const selectedDays = ref([1])
+const selectedNights = ref([])
 const showPartialDaySelector = ref(false)
 
 const shirtSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
@@ -354,6 +383,22 @@ const eventDays = computed(() => {
 
 const fullEventDays = computed(() => eventDays.value.map(day => day.value))
 
+const nightOptions = computed(() => {
+  if (eventDays.value.length < 2) return []
+
+  return eventDays.value.slice(0, -1).map(day => {
+    const nextDay = eventDays.value.find(option => option.value === day.value + 1)
+    const available = selectedDays.value.includes(day.value) && selectedDays.value.includes(day.value + 1)
+
+    return {
+      value: day.value,
+      title: day.value === 1 ? 'Vrijdag op zaterdag' : 'Zaterdag op zondag',
+      label: nextDay ? `${day.label} naar ${nextDay.label}` : `Dag ${day.value} naar dag ${day.value + 1}`,
+      available
+    }
+  })
+})
+
 const selectedDaysText = computed(() => selectedDays.value
     .slice()
     .sort((a, b) => a - b)
@@ -362,6 +407,32 @@ const selectedDaysText = computed(() => selectedDays.value
       return eventDay ? `Dag ${day} (${eventDay.label})` : `Dag ${day}`
     })
     .join(', '))
+
+const selectedNightsText = computed(() => {
+  if (!selectedNights.value.length) return 'Geen overnachting'
+
+  return selectedNights.value
+      .slice()
+      .sort((a, b) => a - b)
+      .map(night => {
+        const option = nightOptions.value.find(item => item.value === night)
+        return option ? option.title : `Nacht ${night}`
+      })
+      .join(', ')
+})
+
+const attendanceSummaryText = computed(() => {
+  if (selectedDays.value.length >= 3 && selectedNights.value.length >= 2) {
+    return 'Hele weekend gekozen'
+  }
+
+  const dayText = `${selectedDays.value.length} dag${selectedDays.value.length === 1 ? '' : 'en'}`
+  const nightText = selectedNights.value.length
+      ? `${selectedNights.value.length} nacht${selectedNights.value.length === 1 ? '' : 'en'}`
+      : 'geen overnachting'
+
+  return `${dayText}, ${nightText}`
+})
 
 const fullEventText = computed(() => {
   if (!eventDays.value.length) return 'Volledig event'
@@ -500,6 +571,7 @@ async function checkExistingRegistration() {
   shirtSize.value = existingRegistration.shirtSize || ''
   transportOption.value = existingRegistration.transportOption || ''
   selectedDays.value = parseSelectedDays(existingRegistration.selectedDays)
+  selectedNights.value = parseSelectedNights(existingRegistration.selectedNights)
 }
 
 async function handleRegister() {
@@ -523,7 +595,8 @@ async function handleRegister() {
     const result = await createRegistration(event.value.id, {
       shirtSize: shirtSize.value,
       transportOption: transportOption.value,
-      selectedDays: selectedDays.value
+      selectedDays: selectedDays.value,
+      selectedNights: selectedNights.value
     })
 
     registrationId.value = result.data.id
@@ -543,17 +616,20 @@ async function handleRegister() {
 
 function setDefaultSelectedDays() {
   selectedDays.value = fullEventDays.value
+  selectedNights.value = fullEventNightValues()
   showPartialDaySelector.value = false
 }
 
 function startPartialDaySelection() {
   showPartialDaySelector.value = true
   selectedDays.value = selectedDays.value.length === fullEventDays.value.length ? [1] : (selectedDays.value.length ? selectedDays.value : [1])
+  syncSelectedNightsWithDays()
 }
 
 function selectFullEvent() {
   showPartialDaySelector.value = false
   selectedDays.value = fullEventDays.value
+  selectedNights.value = fullEventNightValues()
 }
 
 function toggleSelectedDay(day) {
@@ -561,10 +637,24 @@ function toggleSelectedDay(day) {
 
   if (selectedDays.value.includes(day)) {
     selectedDays.value = selectedDays.value.filter(selectedDay => selectedDay !== day)
+    syncSelectedNightsWithDays()
     return
   }
 
   selectedDays.value = [...selectedDays.value, day].sort((a, b) => a - b)
+  syncSelectedNightsWithDays()
+}
+
+function toggleSelectedNight(night) {
+  const option = nightOptions.value.find(item => item.value === night)
+  if (!option || !option.available) return
+
+  if (selectedNights.value.includes(night)) {
+    selectedNights.value = selectedNights.value.filter(selectedNight => selectedNight !== night)
+    return
+  }
+
+  selectedNights.value = [...selectedNights.value, night].sort((a, b) => a - b)
 }
 
 function parseSelectedDays(value) {
@@ -576,6 +666,29 @@ function parseSelectedDays(value) {
       .filter(day => Number.isInteger(day) && day >= 1 && day <= 3)
 
   return days.length ? days : (canChoosePartialDays.value ? [1] : fullEventDays.value)
+}
+
+function parseSelectedNights(value) {
+  if (!value) return []
+
+  const nights = String(value)
+      .split(',')
+      .map(night => Number(night))
+      .filter(night => Number.isInteger(night) && night >= 1 && night < Math.max(1, eventDays.value.length))
+
+  return nights.filter(night => {
+    return selectedDays.value.includes(night) && selectedDays.value.includes(night + 1)
+  })
+}
+
+function syncSelectedNightsWithDays() {
+  selectedNights.value = selectedNights.value.filter(night => {
+    return selectedDays.value.includes(night) && selectedDays.value.includes(night + 1)
+  })
+}
+
+function fullEventNightValues() {
+  return eventDays.value.slice(0, -1).map(day => day.value)
 }
 
 function addDays(value, amount) {
@@ -964,7 +1077,8 @@ async function handlePaymentProofChange(eventInput) {
   background: #f8fafc;
 }
 
-.day-choice-panel {
+.day-choice-panel,
+.night-choice-panel {
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -973,23 +1087,27 @@ async function handlePaymentProofChange(eventInput) {
   background: #f8fafc;
 }
 
-.day-choice-panel strong {
+.day-choice-panel strong,
+.night-choice-panel strong {
   color: #0f172a;
 }
 
-.day-choice-panel span {
+.day-choice-panel span,
+.night-choice-panel span {
   display: block;
   color: #64748b;
   font-size: 0.9rem;
 }
 
-.day-choice-grid {
+.day-choice-grid,
+.night-choice-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 10px;
 }
 
-.day-choice-grid button {
+.day-choice-grid button,
+.night-choice-grid button {
   display: grid;
   gap: 4px;
   min-height: 82px;
@@ -1001,10 +1119,16 @@ async function handlePaymentProofChange(eventInput) {
   transition: 0.2s ease;
 }
 
-.day-choice-grid button.active {
+.day-choice-grid button.active,
+.night-choice-grid button.active {
   border-color: #2563eb;
   background: #eff6ff;
   box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.night-choice-grid button.disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .selected-price {

@@ -50,6 +50,7 @@ async function ensureAppSchema() {
     await addColumnIfMissing("conferences", "google_sheet_last_error", "TEXT NULL");
     await addColumnIfMissing("conferences", "archived_at", "TIMESTAMP NULL");
     await addColumnIfMissing("registrations", "selected_days", "VARCHAR(50) NULL");
+    await addColumnIfMissing("registrations", "selected_nights", "VARCHAR(50) NULL");
     await addColumnIfMissing("registrations", "selected_day_count", "INT DEFAULT 1");
     await addColumnIfMissing("registrations", "selected_price", "DECIMAL(10,2) NULL");
 

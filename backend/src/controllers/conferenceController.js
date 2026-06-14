@@ -397,6 +397,43 @@ function formatSelectedDays(selectedDays) {
         .join(", ");
 }
 
+function parseSelection(value) {
+    if (!value) return [];
+
+    return String(value)
+        .split(",")
+        .map(item => Number(item.trim()))
+        .filter(Number.isInteger);
+}
+
+function formatSelectedNights(selectedNights) {
+    const nights = parseSelection(selectedNights);
+
+    if (nights.length === 0) return "Geen overnachting";
+
+    return nights
+        .map(night => {
+            if (night === 1) return "Vrijdag op zaterdag";
+            if (night === 2) return "Zaterdag op zondag";
+            return `Nacht ${night}`;
+        })
+        .join(", ");
+}
+
+function formatAttendanceType(user) {
+    const days = parseSelection(user.selectedDays);
+    const nights = parseSelection(user.selectedNights);
+    const dayCount = Number(user.selectedDayCount || days.length || 0);
+
+    if (dayCount >= 3 && nights.length >= 2) return "Hele weekend";
+    if (nights.length === 1) return "1 nacht";
+    if (nights.length > 1) return `${nights.length} nachten`;
+    if (dayCount === 1) return "1 dag";
+    if (dayCount > 1) return `${dayCount} dagen zonder overnachting`;
+
+    return "Niet ingevuld";
+}
+
 async function exportApprovedUsersCsv(req, res) {
     try {
         const { id } = req.params;
@@ -431,7 +468,9 @@ async function exportApprovedUsersCsv(req, res) {
             "Telefoon",
             "Shirtmaat",
             "Vervoer",
+            "Aanwezigheidstype",
             "Gekozen dagen",
+            "Gekozen nachten",
             "Prijs",
             "Geboortedatum",
             "Kerk",
@@ -462,7 +501,9 @@ async function exportApprovedUsersCsv(req, res) {
             user.phone,
             user.shirtSize,
             formatTransportOption(user.transportOption),
+            formatAttendanceType(user),
             formatSelectedDays(user.selectedDays),
+            formatSelectedNights(user.selectedNights),
             user.selectedPrice,
             formatCsvDate(user.birthDate),
             user.churchName,

@@ -190,6 +190,8 @@
                 <th>Shirtmaat</th>
                 <th>Vervoer</th>
                 <th>Dagen</th>
+                <th>Nachten</th>
+                <th>Type verblijf</th>
                 <th>Kerk</th>
                 <th>Status</th>
                 <th>Op locatie</th>
@@ -204,6 +206,8 @@
                 <td>{{ registration.shirtSize || '-' }}</td>
                 <td>{{ transportOptionText(registration.transportOption) }}</td>
                 <td>{{ formatSelectedDays(registration.selectedDays) }}</td>
+                <td>{{ formatSelectedNights(registration.selectedNights) }}</td>
+                <td>{{ attendanceTypeText(registration) }}</td>
                 <td>{{ registration.churchName || '-' }}</td>
                 <td>{{ registrationStatusText(registration.registrationStatus) }}</td>
                 <td>{{ isApprovedRegistration(registration) ? 'Ja' : 'Nee' }}</td>
@@ -283,6 +287,18 @@
             </select>
           </label>
 
+          <label>
+            <span>Nachten</span>
+            <select v-model="registrationFilters.nightFilter">
+              <option value="">Alle nachten</option>
+              <option value="none">Geen overnachting</option>
+              <option value="1_night">1 nacht</option>
+              <option value="2_nights">2 nachten</option>
+              <option value="night_1">Vrijdag op zaterdag</option>
+              <option value="night_2">Zaterdag op zondag</option>
+            </select>
+          </label>
+
           <button
               type="button"
               class="clear-filters-button"
@@ -303,7 +319,7 @@
             <tr>
               <th>Gebruiker</th>
               <th>Betaald</th>
-              <th>Dagen</th>
+              <th>Verblijf</th>
               <th>Prijs</th>
               <th>Actie</th>
             </tr>
@@ -329,7 +345,7 @@
                 </span>
               </td>
 
-              <td data-label="Dagen">{{ formatSelectedDays(registration.selectedDays) }}</td>
+              <td data-label="Verblijf">{{ attendanceSummaryText(registration) }}</td>
               <td data-label="Prijs">€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</td>
 
               <td data-label="Actie">
@@ -391,6 +407,16 @@
             <div>
               <span>Dagen</span>
               <strong>{{ formatSelectedDays(selectedRegistration.selectedDays) }}</strong>
+            </div>
+
+            <div>
+              <span>Overnachting</span>
+              <strong>{{ formatSelectedNights(selectedRegistration.selectedNights) }}</strong>
+            </div>
+
+            <div>
+              <span>Type verblijf</span>
+              <strong>{{ attendanceTypeText(selectedRegistration) }}</strong>
             </div>
 
             <div>
@@ -507,7 +533,8 @@ const registrationFilters = ref({
   search: '',
   eventId: '',
   transport: '',
-  dayCount: ''
+  dayCount: '',
+  nightFilter: ''
 })
 const googleLoading = ref(false)
 const googleStatus = ref({
@@ -595,6 +622,7 @@ const filteredRegistrations = computed(() => {
   const eventId = registrationFilters.value.eventId
   const transport = registrationFilters.value.transport
   const dayCount = registrationFilters.value.dayCount
+  const nightFilter = registrationFilters.value.nightFilter
 
   return tabFilteredRegistrations.value.filter(registration => {
     if (searchTerm) {
@@ -630,6 +658,16 @@ const filteredRegistrations = computed(() => {
       } else if (count !== Number(dayCount)) {
         return false
       }
+    }
+
+    if (nightFilter) {
+      const nights = parseSelection(registration.selectedNights)
+
+      if (nightFilter === 'none' && nights.length !== 0) return false
+      if (nightFilter === '1_night' && nights.length !== 1) return false
+      if (nightFilter === '2_nights' && nights.length !== 2) return false
+      if (nightFilter === 'night_1' && !nights.includes(1)) return false
+      if (nightFilter === 'night_2' && !nights.includes(2)) return false
     }
 
     return true
@@ -825,6 +863,46 @@ function formatSelectedDays(value) {
       .join(', ')
 }
 
+function parseSelection(value) {
+  if (!value) return []
+
+  return String(value)
+      .split(',')
+      .map(item => Number(item.trim()))
+      .filter(Number.isInteger)
+}
+
+function formatSelectedNights(value) {
+  const nights = parseSelection(value)
+
+  if (nights.length === 0) return 'Geen overnachting'
+
+  return nights
+      .map(night => {
+        if (night === 1) return 'Vrijdag op zaterdag'
+        if (night === 2) return 'Zaterdag op zondag'
+        return `Nacht ${night}`
+      })
+      .join(', ')
+}
+
+function attendanceTypeText(registration) {
+  const nights = parseSelection(registration.selectedNights)
+  const dayCount = selectedDayCount(registration)
+
+  if (dayCount >= 3 && nights.length >= 2) return 'Hele weekend'
+  if (nights.length === 1) return '1 nacht'
+  if (nights.length > 1) return `${nights.length} nachten`
+  if (dayCount === 1) return '1 dag'
+  if (dayCount > 1) return `${dayCount} dagen zonder overnachting`
+
+  return 'Niet ingevuld'
+}
+
+function attendanceSummaryText(registration) {
+  return `${attendanceTypeText(registration)} - ${formatSelectedDays(registration.selectedDays)} - ${formatSelectedNights(registration.selectedNights)}`
+}
+
 function selectedDayCount(registration) {
   if (registration.selectedDayCount) return Number(registration.selectedDayCount)
 
@@ -849,7 +927,8 @@ function clearRegistrationFilters() {
     search: '',
     eventId: '',
     transport: '',
-    dayCount: ''
+    dayCount: '',
+    nightFilter: ''
   }
 }
 
@@ -1367,7 +1446,7 @@ async function exportCsvForEvent(registration) {
 
 .registration-filterbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(150px, 1fr)) auto;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(140px, 1fr)) auto;
   gap: 12px;
   align-items: end;
   margin-bottom: 12px;

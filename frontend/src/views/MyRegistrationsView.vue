@@ -78,6 +78,11 @@
             </div>
 
             <div>
+              <span>Overnachting</span>
+              <strong>{{ formatSelectedNights(registration.selectedNights) }}</strong>
+            </div>
+
+            <div>
               <span>Vervoer</span>
               <strong>{{ transportOptionText(registration.transportOption) }}</strong>
             </div>
@@ -164,6 +169,29 @@ function formatSelectedDays(value) {
   return String(value)
       .split(',')
       .map(day => `Dag ${day.trim()}`)
+      .join(', ')
+}
+
+function parseSelection(value) {
+  if (!value) return []
+
+  return String(value)
+      .split(',')
+      .map(item => Number(item.trim()))
+      .filter(Number.isInteger)
+}
+
+function formatSelectedNights(value) {
+  const nights = parseSelection(value)
+
+  if (nights.length === 0) return 'Geen overnachting'
+
+  return nights
+      .map(night => {
+        if (night === 1) return 'Vrijdag op zaterdag'
+        if (night === 2) return 'Zaterdag op zondag'
+        return `Nacht ${night}`
+      })
       .join(', ')
 }
 

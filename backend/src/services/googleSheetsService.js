@@ -318,6 +318,43 @@ function formatSelectedDays(selectedDays) {
         .join(", ");
 }
 
+function parseSelection(value) {
+    if (!value) return [];
+
+    return String(value)
+        .split(",")
+        .map(item => Number(item.trim()))
+        .filter(Number.isInteger);
+}
+
+function formatSelectedNights(selectedNights) {
+    const nights = parseSelection(selectedNights);
+
+    if (nights.length === 0) return "Geen overnachting";
+
+    return nights
+        .map(night => {
+            if (night === 1) return "Vrijdag op zaterdag";
+            if (night === 2) return "Zaterdag op zondag";
+            return `Nacht ${night}`;
+        })
+        .join(", ");
+}
+
+function formatAttendanceType(registration) {
+    const days = parseSelection(registration.selectedDays);
+    const nights = parseSelection(registration.selectedNights);
+    const dayCount = Number(registration.selectedDayCount || days.length || 0);
+
+    if (dayCount >= 3 && nights.length >= 2) return "Hele weekend";
+    if (nights.length === 1) return "1 nacht";
+    if (nights.length > 1) return `${nights.length} nachten`;
+    if (dayCount === 1) return "1 dag";
+    if (dayCount > 1) return `${dayCount} dagen zonder overnachting`;
+
+    return "Niet ingevuld";
+}
+
 function createSheetRows(registrations) {
     const headers = [
         "Registratie ID",
@@ -328,7 +365,9 @@ function createSheetRows(registrations) {
         "Telefoon",
         "Shirtmaat",
         "Vervoer",
+        "Aanwezigheidstype",
         "Gekozen dagen",
+        "Gekozen nachten",
         "Prijs",
         "Geboortedatum",
         "Kerk",
@@ -359,7 +398,9 @@ function createSheetRows(registrations) {
             registration.phone || "",
             registration.shirtSize || "",
             formatTransportOption(registration.transportOption),
+            formatAttendanceType(registration),
             formatSelectedDays(registration.selectedDays),
+            formatSelectedNights(registration.selectedNights),
             registration.selectedPrice ?? "",
             formatSheetDate(registration.birthDate),
             registration.churchName || "",
@@ -391,6 +432,7 @@ function createSimpleRows(headers, registrations, mapper) {
 function createWorkbookTabs(registrations) {
     const approvedRegistrations = registrations.filter(isOnLocationList);
     const busRegistrations = registrations.filter(registration => registration.transportOption === "bus");
+    const overnightRegistrations = registrations.filter(registration => parseSelection(registration.selectedNights).length > 0);
     const shirtRegistrations = registrations.filter(registration => registration.shirtSize);
 
     return [
@@ -413,6 +455,22 @@ function createWorkbookTabs(registrations) {
                     registration.phone || "",
                     registration.churchName || "",
                     registration.profileCity || "",
+                    registration.registrationStatus || ""
+                ]
+            )
+        },
+        {
+            title: "Overnachting",
+            rows: createSimpleRows(
+                ["Naam", "E-mail", "Telefoon", "Aanwezigheidstype", "Gekozen dagen", "Gekozen nachten", "Status"],
+                overnightRegistrations,
+                registration => [
+                    registration.userName || "",
+                    registration.userEmail || "",
+                    registration.phone || "",
+                    formatAttendanceType(registration),
+                    formatSelectedDays(registration.selectedDays),
+                    formatSelectedNights(registration.selectedNights),
                     registration.registrationStatus || ""
                 ]
             )

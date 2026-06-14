@@ -231,6 +231,7 @@ async function getApprovedUsersForConference(conferenceId) {
             r.shirt_size AS shirtSize,
             r.transport_option AS transportOption,
             r.selected_days AS selectedDays,
+            r.selected_nights AS selectedNights,
             COALESCE(r.selected_day_count, 1) AS selectedDayCount,
             COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
