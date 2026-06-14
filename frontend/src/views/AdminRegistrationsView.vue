@@ -339,9 +339,14 @@
                 </td>
 
                 <td data-label="Betaald">
-                  <span :class="['status-pill', registration.paymentStatus]">
-                    {{ paymentStatusText(registration.paymentStatus) }}
-                  </span>
+                  <div class="payment-cell">
+                    <span :class="['status-pill', registration.paymentStatus]">
+                      {{ paymentStatusText(registration.paymentStatus) }}
+                    </span>
+                    <span class="payment-method-pill">
+                      {{ paymentMethodText(registration.paymentMethod) }}
+                    </span>
+                  </div>
                 </td>
 
                 <td data-label="Verblijf">
@@ -440,6 +445,11 @@
                       <div>
                         <span>Prijs</span>
                         <strong>€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Betaalwijze</span>
+                        <strong>{{ paymentMethodText(registration.paymentMethod) }}</strong>
                       </div>
 
                       <div>
@@ -1989,6 +1999,13 @@ td strong {
 }
 
 /* STATUS */
+.payment-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -2022,6 +2039,21 @@ td strong {
 .status-pill.rejected {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.payment-method-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 /* BUTTONS */
