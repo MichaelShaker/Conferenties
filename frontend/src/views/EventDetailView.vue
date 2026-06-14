@@ -116,41 +116,42 @@
             </p>
 
             <div v-if="canChoosePartialDays" class="attendance-choice">
-              <div class="full-event-choice" :class="{ active: !showPartialDaySelector }">
-                <div>
-                  <span class="choice-label">Aanbevolen</span>
-                  <strong>Ik kom de hele periode</strong>
-                  <small>{{ fullEventText }}</small>
-                </div>
+              <div class="attendance-mode-grid">
+                <button
+                  type="button"
+                  class="attendance-mode-card"
+                  :class="{ active: !showPartialDaySelector }"
+                  @click="selectFullEvent"
+                >
+                  <span class="choice-label">Meest gekozen</span>
+                  <strong>Ik kom de hele conferentie</strong>
+                  <small>{{ fullEventText }} inclusief overnachting(en)</small>
+                  <b>€{{ Number(fullEventPrice).toFixed(2) }}</b>
+                </button>
 
-                <div class="choice-price">
-                  €{{ Number(selectedPrice).toFixed(2) }}
-                </div>
+                <button
+                  type="button"
+                  class="attendance-mode-card"
+                  :class="{ active: showPartialDaySelector }"
+                  @click="startPartialDaySelection"
+                >
+                  <span class="choice-label">Zelf kiezen</span>
+                  <strong>Ik kom niet alles</strong>
+                  <small>Kies hieronder precies welke dag(en) en nacht(en).</small>
+                  <b>Vanaf €{{ Number(lowestDayPrice).toFixed(2) }}</b>
+                </button>
               </div>
 
-              <button
-                  v-if="showPartialDaySelector"
-                  type="button"
-                  class="choice-link"
-                  @click="selectFullEvent"
-              >
-                Toch hele periode kiezen
-              </button>
-
-              <button
-                  v-else
-                  type="button"
-                  class="choice-link"
-                  @click="startPartialDaySelection"
-              >
-                Ik kom alleen bepaalde dag(en)
-              </button>
+              <p class="attendance-summary-line">
+                <strong>{{ attendanceSummaryText }}</strong>
+                <span>€{{ Number(selectedPrice).toFixed(2) }}</span>
+              </p>
             </div>
 
             <div v-if="canChoosePartialDays && showPartialDaySelector" class="day-choice-panel">
               <div>
-                <strong>Kies je dag(en)</strong>
-                <span>Vink alleen de dagen aan waarop je aanwezig bent.</span>
+                <strong>Welke dag(en) kom je?</strong>
+                <span>Kies vrijdag, zaterdag en/of zondag. Dit bepaalt ook welke overnachting mogelijk is.</span>
               </div>
 
               <div class="day-choice-grid">
@@ -161,8 +162,9 @@
                     :class="{ active: selectedDays.includes(day.value) }"
                     @click="toggleSelectedDay(day.value)"
                 >
-                  <strong>Dag {{ day.value }}</strong>
+                  <strong>{{ day.title }}</strong>
                   <span>{{ day.label }}</span>
+                  <small>Dag {{ day.value }}</small>
                 </button>
               </div>
 
@@ -172,10 +174,10 @@
               </p>
             </div>
 
-            <div v-if="nightOptions.length" class="night-choice-panel">
+            <div v-if="nightOptions.length && showPartialDaySelector" class="night-choice-panel">
               <div>
-                <strong>Overnachting</strong>
-                <span>Kies welke nacht(en) je blijft slapen. Laat leeg als je niet blijft slapen.</span>
+                <strong>Blijf je slapen?</strong>
+                <span>Kies de nacht waarop je blijft overnachten. Overnachten kan alleen tussen twee gekozen dagen.</span>
               </div>
 
               <div class="night-choice-grid">
@@ -188,6 +190,7 @@
                 >
                   <strong>{{ night.title }}</strong>
                   <span>{{ night.label }}</span>
+                  <small>{{ night.available ? 'Klik om deze nacht te kiezen' : night.unavailableText }}</small>
                 </button>
               </div>
 
@@ -376,6 +379,7 @@ const eventDays = computed(() => {
 
     return {
       value,
+      title: date ? formatWeekday(date) : `Dag ${value}`,
       label: date ? formatDate(date) : `Dag ${value}`
     }
   })
@@ -393,8 +397,9 @@ const nightOptions = computed(() => {
     return {
       value: day.value,
       title: day.value === 1 ? 'Vrijdag op zaterdag' : 'Zaterdag op zondag',
-      label: nextDay ? `${day.label} naar ${nextDay.label}` : `Dag ${day.value} naar dag ${day.value + 1}`,
-      available
+      label: nextDay ? `Van ${day.label} naar ${nextDay.label}` : `Dag ${day.value} naar dag ${day.value + 1}`,
+      available,
+      unavailableText: `Kies ${day.title.toLowerCase()} en ${nextDay?.title.toLowerCase() || `dag ${day.value + 1}`}`
     }
   })
 })
@@ -423,21 +428,31 @@ const selectedNightsText = computed(() => {
 
 const attendanceSummaryText = computed(() => {
   if (selectedDays.value.length >= 3 && selectedNights.value.length >= 2) {
-    return 'Hele weekend gekozen'
+    return 'Hele conferentie, inclusief beide overnachtingen'
   }
 
-  const dayText = `${selectedDays.value.length} dag${selectedDays.value.length === 1 ? '' : 'en'}`
+  const selectedDayNames = selectedDays.value
+      .slice()
+      .sort((a, b) => a - b)
+      .map(day => eventDays.value.find(option => option.value === day)?.title?.toLowerCase() || `dag ${day}`)
+      .join(', ')
+  const dayText = selectedDays.value.length === 1
+      ? `Alleen ${selectedDayNames}`
+      : `${selectedDays.value.length} dagen: ${selectedDayNames}`
   const nightText = selectedNights.value.length
-      ? `${selectedNights.value.length} nacht${selectedNights.value.length === 1 ? '' : 'en'}`
+      ? selectedNightsText.value
       : 'geen overnachting'
 
-  return `${dayText}, ${nightText}`
+  return `${dayText} · ${nightText}`
 })
 
 const fullEventText = computed(() => {
   if (!eventDays.value.length) return 'Volledig event'
+  if (eventDays.value.length > 1) {
+    return `${eventDays.value[0].label} t/m ${eventDays.value[eventDays.value.length - 1].label}`
+  }
 
-  return eventDays.value.map(day => day.label).join(' t/m ')
+  return eventDays.value[0].label
 })
 
 const selectedPrice = computed(() => {
@@ -453,6 +468,22 @@ const selectedPrice = computed(() => {
 
   return Number(event.value?.priceOneDay ?? event.value?.price ?? 0) * count
 })
+
+const fullEventPrice = computed(() => {
+  const count = fullEventDays.value.length || 1
+
+  if (count === 3 && event.value?.priceThreeDays !== null && event.value?.priceThreeDays !== undefined) {
+    return Number(event.value.priceThreeDays)
+  }
+
+  if (count === 2 && event.value?.priceTwoDays !== null && event.value?.priceTwoDays !== undefined) {
+    return Number(event.value.priceTwoDays)
+  }
+
+  return Number(event.value?.priceOneDay ?? event.value?.price ?? 0) * count
+})
+
+const lowestDayPrice = computed(() => Number(event.value?.priceOneDay ?? event.value?.price ?? 0))
 
 const priceLabel = computed(() => `€${Number(selectedPrice.value).toFixed(2)}`)
 
@@ -496,6 +527,14 @@ function formatDate(value) {
     day: '2-digit',
     month: 'long',
     year: 'numeric'
+  })
+}
+
+function formatWeekday(value) {
+  if (!value) return '-'
+
+  return new Date(value).toLocaleDateString('nl-NL', {
+    weekday: 'long'
   })
 }
 
@@ -623,6 +662,7 @@ function setDefaultSelectedDays() {
 function startPartialDaySelection() {
   showPartialDaySelector.value = true
   selectedDays.value = selectedDays.value.length === fullEventDays.value.length ? [1] : (selectedDays.value.length ? selectedDays.value : [1])
+  selectedNights.value = []
   syncSelectedNightsWithDays()
 }
 
@@ -1018,31 +1058,49 @@ async function handlePaymentProofChange(eventInput) {
   gap: 10px;
 }
 
-.full-event-choice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid #93c5fd;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #eff6ff, #ffffff 76%);
+.attendance-mode-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
-.full-event-choice strong,
-.full-event-choice small,
+.attendance-mode-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #ffffff;
+  text-align: left;
+  transition: 0.2s ease;
+}
+
+.attendance-mode-card.active {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #eff6ff, #ffffff 76%);
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.attendance-mode-card strong,
+.attendance-mode-card small,
 .choice-label {
   display: block;
 }
 
-.full-event-choice strong {
+.attendance-mode-card strong {
   color: #0f172a;
+  font-size: 1rem;
 }
 
-.full-event-choice small {
-  margin-top: 4px;
+.attendance-mode-card small {
   color: #64748b;
   line-height: 1.45;
+}
+
+.attendance-mode-card b {
+  color: #0f172a;
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .choice-label {
@@ -1054,27 +1112,25 @@ async function handlePaymentProofChange(eventInput) {
   text-transform: uppercase;
 }
 
-.choice-price {
-  flex: 0 0 auto;
-  color: #0f172a;
-  font-size: 1.4rem;
-  font-weight: 900;
-}
-
-.choice-link {
-  width: 100%;
-  min-height: 48px;
-  padding: 12px;
-  border: 1px solid #cbd5e1;
+.attendance-summary-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 13px 14px;
+  border: 1px solid #dbe3ee;
   border-radius: 10px;
-  background: #ffffff;
-  color: #2563eb;
-  font-weight: 900;
-  text-align: center;
+  background: #f8fafc;
+  color: #334155 !important;
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
-.choice-link:hover {
-  background: #f8fafc;
+.attendance-summary-line span {
+  color: #0f172a;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .day-choice-panel,
@@ -1117,6 +1173,14 @@ async function handlePaymentProofChange(eventInput) {
   background: #ffffff;
   text-align: left;
   transition: 0.2s ease;
+}
+
+.day-choice-grid button small,
+.night-choice-grid button small {
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.25;
 }
 
 .day-choice-grid button.active,

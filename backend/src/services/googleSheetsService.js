@@ -341,6 +341,14 @@ function formatSelectedNights(selectedNights) {
         .join(", ");
 }
 
+function countSelectedNights(selectedNights) {
+    return parseSelection(selectedNights).length;
+}
+
+function hasSelectedNight(selectedNights, night) {
+    return parseSelection(selectedNights).includes(night) ? "Ja" : "Nee";
+}
+
 function formatAttendanceType(registration) {
     const days = parseSelection(registration.selectedDays);
     const nights = parseSelection(registration.selectedNights);
@@ -350,7 +358,7 @@ function formatAttendanceType(registration) {
     if (nights.length === 1) return "1 nacht";
     if (nights.length > 1) return `${nights.length} nachten`;
     if (dayCount === 1) return "1 dag";
-    if (dayCount > 1) return `${dayCount} dagen zonder overnachting`;
+    if (dayCount > 1) return `${dayCount} dagen`;
 
     return "Niet ingevuld";
 }
@@ -368,6 +376,10 @@ function createSheetRows(registrations) {
         "Aanwezigheidstype",
         "Gekozen dagen",
         "Gekozen nachten",
+        "Aantal dagen",
+        "Aantal nachten",
+        "Nacht vrijdag-zaterdag",
+        "Nacht zaterdag-zondag",
         "Prijs",
         "Geboortedatum",
         "Kerk",
@@ -401,6 +413,10 @@ function createSheetRows(registrations) {
             formatAttendanceType(registration),
             formatSelectedDays(registration.selectedDays),
             formatSelectedNights(registration.selectedNights),
+            registration.selectedDayCount ?? "",
+            countSelectedNights(registration.selectedNights),
+            hasSelectedNight(registration.selectedNights, 1),
+            hasSelectedNight(registration.selectedNights, 2),
             registration.selectedPrice ?? "",
             formatSheetDate(registration.birthDate),
             registration.churchName || "",
@@ -447,12 +463,16 @@ function createWorkbookTabs(registrations) {
         {
             title: "Bus",
             rows: createSimpleRows(
-                ["Naam", "E-mail", "Telefoon", "Kerk", "Woonplaats", "Status"],
+                ["Naam", "E-mail", "Telefoon", "Dagen", "Nachten", "Vrijdag-zaterdag", "Zaterdag-zondag", "Kerk", "Woonplaats", "Status"],
                 busRegistrations,
                 registration => [
                     registration.userName || "",
                     registration.userEmail || "",
                     registration.phone || "",
+                    formatSelectedDays(registration.selectedDays),
+                    formatSelectedNights(registration.selectedNights),
+                    hasSelectedNight(registration.selectedNights, 1),
+                    hasSelectedNight(registration.selectedNights, 2),
                     registration.churchName || "",
                     registration.profileCity || "",
                     registration.registrationStatus || ""
@@ -462,7 +482,7 @@ function createWorkbookTabs(registrations) {
         {
             title: "Overnachting",
             rows: createSimpleRows(
-                ["Naam", "E-mail", "Telefoon", "Aanwezigheidstype", "Gekozen dagen", "Gekozen nachten", "Status"],
+                ["Naam", "E-mail", "Telefoon", "Aanwezigheidstype", "Gekozen dagen", "Gekozen nachten", "Aantal nachten", "Vrijdag-zaterdag", "Zaterdag-zondag", "Status"],
                 overnightRegistrations,
                 registration => [
                     registration.userName || "",
@@ -471,6 +491,9 @@ function createWorkbookTabs(registrations) {
                     formatAttendanceType(registration),
                     formatSelectedDays(registration.selectedDays),
                     formatSelectedNights(registration.selectedNights),
+                    countSelectedNights(registration.selectedNights),
+                    hasSelectedNight(registration.selectedNights, 1),
+                    hasSelectedNight(registration.selectedNights, 2),
                     registration.registrationStatus || ""
                 ]
             )

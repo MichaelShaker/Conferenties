@@ -420,6 +420,14 @@ function formatSelectedNights(selectedNights) {
         .join(", ");
 }
 
+function countSelectedNights(selectedNights) {
+    return parseSelection(selectedNights).length;
+}
+
+function hasSelectedNight(selectedNights, night) {
+    return parseSelection(selectedNights).includes(night) ? "Ja" : "Nee";
+}
+
 function formatAttendanceType(user) {
     const days = parseSelection(user.selectedDays);
     const nights = parseSelection(user.selectedNights);
@@ -429,7 +437,7 @@ function formatAttendanceType(user) {
     if (nights.length === 1) return "1 nacht";
     if (nights.length > 1) return `${nights.length} nachten`;
     if (dayCount === 1) return "1 dag";
-    if (dayCount > 1) return `${dayCount} dagen zonder overnachting`;
+    if (dayCount > 1) return `${dayCount} dagen`;
 
     return "Niet ingevuld";
 }
@@ -471,6 +479,10 @@ async function exportApprovedUsersCsv(req, res) {
             "Aanwezigheidstype",
             "Gekozen dagen",
             "Gekozen nachten",
+            "Aantal dagen",
+            "Aantal nachten",
+            "Nacht vrijdag-zaterdag",
+            "Nacht zaterdag-zondag",
             "Prijs",
             "Geboortedatum",
             "Kerk",
@@ -504,6 +516,10 @@ async function exportApprovedUsersCsv(req, res) {
             formatAttendanceType(user),
             formatSelectedDays(user.selectedDays),
             formatSelectedNights(user.selectedNights),
+            user.selectedDayCount,
+            countSelectedNights(user.selectedNights),
+            hasSelectedNight(user.selectedNights, 1),
+            hasSelectedNight(user.selectedNights, 2),
             user.selectedPrice,
             formatCsvDate(user.birthDate),
             user.churchName,

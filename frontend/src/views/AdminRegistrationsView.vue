@@ -344,11 +344,28 @@
                   </span>
                 </td>
 
-                <td data-label="Verblijf">{{ attendanceSummaryText(registration) }}</td>
+                <td data-label="Verblijf">
+                  <div class="attendance-cell">
+                    <strong>{{ attendanceTypeText(registration) }}</strong>
+                    <div class="attendance-tags">
+                      <span>{{ formatSelectedDays(registration.selectedDays) }}</span>
+                      <span :class="{ muted: !parseSelection(registration.selectedNights).length }">
+                        {{ formatSelectedNights(registration.selectedNights) }}
+                      </span>
+                    </div>
+                  </div>
+                </td>
                 <td data-label="Prijs">€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</td>
 
                 <td data-label="Actie">
                   <div class="action-buttons">
+                    <button
+                        class="details-button"
+                        @click.stop="selectRegistration(registration)"
+                    >
+                      {{ selectedRegistration?.id === registration.id ? 'Sluiten' : 'Openen' }}
+                    </button>
+
                     <button
                         class="approve-button"
                         @click.stop="approveRegistration(registration)"
@@ -403,12 +420,12 @@
                       </div>
 
                       <div>
-                        <span>Overnachting</span>
+                        <span>Nachten</span>
                         <strong>{{ formatSelectedNights(registration.selectedNights) }}</strong>
                       </div>
 
                       <div>
-                        <span>Type verblijf</span>
+                        <span>Aanwezigheid</span>
                         <strong>{{ attendanceTypeText(registration) }}</strong>
                       </div>
 
@@ -912,13 +929,13 @@ function attendanceTypeText(registration) {
   if (nights.length === 1) return '1 nacht'
   if (nights.length > 1) return `${nights.length} nachten`
   if (dayCount === 1) return '1 dag'
-  if (dayCount > 1) return `${dayCount} dagen zonder overnachting`
+  if (dayCount > 1) return `${dayCount} dagen`
 
   return 'Niet ingevuld'
 }
 
 function attendanceSummaryText(registration) {
-  return `${attendanceTypeText(registration)} - ${formatSelectedDays(registration.selectedDays)} - ${formatSelectedNights(registration.selectedNights)}`
+  return `${attendanceTypeText(registration)} · ${formatSelectedDays(registration.selectedDays)} · ${formatSelectedNights(registration.selectedNights)}`
 }
 
 function selectedDayCount(registration) {
@@ -1731,6 +1748,43 @@ td strong {
   min-width: 140px;
 }
 
+.attendance-cell {
+  display: grid;
+  gap: 8px;
+  min-width: 210px;
+}
+
+.attendance-cell > strong {
+  color: #0f172a;
+  font-size: 0.96rem;
+}
+
+.attendance-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.attendance-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.attendance-tags span.muted {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+
 /* STATUS */
 .status-pill {
   display: inline-flex;
@@ -1775,9 +1829,10 @@ td strong {
 }
 
 .proof-button,
+.details-button,
 .approve-button,
 .reject-button {
-  min-height: 42px;
+  min-height: 44px;
   padding: 10px 13px;
   border-radius: 10px;
   font-size: 0.82rem;
@@ -1810,6 +1865,15 @@ td strong {
 }
 
 .proof-button:hover {
+  background: #e2e8f0;
+}
+
+.details-button {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.details-button:hover {
   background: #e2e8f0;
 }
 
