@@ -193,7 +193,10 @@ async function getMyRegistrations(userId) {
             r.transport_option AS transportOption,
             r.selected_days AS selectedDays,
             r.selected_nights AS selectedNights,
-            COALESCE(r.selected_day_count, 1) AS selectedDayCount,
+            CASE
+                WHEN r.selected_days IS NULL OR r.selected_days = '' THEN COALESCE(c.max_event_days, 1)
+                ELSE COALESCE(r.selected_day_count, 1)
+            END AS selectedDayCount,
             COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
@@ -204,6 +207,15 @@ async function getMyRegistrations(userId) {
             c.location AS eventLocation,
             c.conference_date AS eventDate,
             c.event_end_date AS eventDateEnd,
+            COALESCE(c.max_event_days, 1) AS maxEventDays,
+            COALESCE(
+                CASE
+                    WHEN COALESCE(c.max_event_days, 1) >= 3 THEN c.price_3_days
+                    WHEN COALESCE(c.max_event_days, 1) = 2 THEN c.price_2_days
+                    ELSE c.price
+                END,
+                c.price
+            ) AS fullEventPrice,
             c.price,
             c.registration_deadline AS registrationDeadline,
             c.image_url AS eventImage
@@ -227,7 +239,10 @@ async function getAllRegistrations() {
             r.transport_option AS transportOption,
             r.selected_days AS selectedDays,
             r.selected_nights AS selectedNights,
-            COALESCE(r.selected_day_count, 1) AS selectedDayCount,
+            CASE
+                WHEN r.selected_days IS NULL OR r.selected_days = '' THEN COALESCE(c.max_event_days, 1)
+                ELSE COALESCE(r.selected_day_count, 1)
+            END AS selectedDayCount,
             COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
@@ -249,6 +264,15 @@ async function getAllRegistrations() {
             c.location AS eventLocation,
             c.conference_date AS eventDate,
             c.event_end_date AS eventDateEnd,
+            COALESCE(c.max_event_days, 1) AS maxEventDays,
+            COALESCE(
+                CASE
+                    WHEN COALESCE(c.max_event_days, 1) >= 3 THEN c.price_3_days
+                    WHEN COALESCE(c.max_event_days, 1) = 2 THEN c.price_2_days
+                    ELSE c.price
+                END,
+                c.price
+            ) AS fullEventPrice,
             c.google_sheet_url AS googleSheetUrl,
             c.google_sheet_last_synced_at AS googleSheetLastSyncedAt,
             c.google_sheet_last_error AS googleSheetLastError
@@ -311,7 +335,10 @@ async function updateRegistrationStatus(id, paymentStatus, registrationStatus, a
             r.transport_option AS transportOption,
             r.selected_days AS selectedDays,
             r.selected_nights AS selectedNights,
-            COALESCE(r.selected_day_count, 1) AS selectedDayCount,
+            CASE
+                WHEN r.selected_days IS NULL OR r.selected_days = '' THEN COALESCE(c.max_event_days, 1)
+                ELSE COALESCE(r.selected_day_count, 1)
+            END AS selectedDayCount,
             COALESCE(r.selected_price, c.price) AS selectedPrice,
             r.admin_note AS adminNote,
             r.cancelled_at AS cancelledAt,
@@ -327,7 +354,16 @@ async function updateRegistrationStatus(id, paymentStatus, registrationStatus, a
             c.title AS eventTitle,
             c.location AS eventLocation,
             c.conference_date AS eventDate,
-            c.event_end_date AS eventDateEnd
+            c.event_end_date AS eventDateEnd,
+            COALESCE(c.max_event_days, 1) AS maxEventDays,
+            COALESCE(
+                CASE
+                    WHEN COALESCE(c.max_event_days, 1) >= 3 THEN c.price_3_days
+                    WHEN COALESCE(c.max_event_days, 1) = 2 THEN c.price_2_days
+                    ELSE c.price
+                END,
+                c.price
+            ) AS fullEventPrice
         FROM registrations r
                  INNER JOIN users u ON r.user_id = u.id
                  INNER JOIN conferences c ON r.conference_id = c.id

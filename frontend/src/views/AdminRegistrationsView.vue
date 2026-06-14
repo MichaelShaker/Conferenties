@@ -205,8 +205,8 @@
                 <td>{{ registration.userPhone || '-' }}</td>
                 <td>{{ registration.shirtSize || '-' }}</td>
                 <td>{{ transportOptionText(registration.transportOption) }}</td>
-                <td>{{ formatSelectedDays(registration.selectedDays) }}</td>
-                <td>{{ formatSelectedNights(registration.selectedNights) }}</td>
+                <td>{{ formatSelectedDays(registration) }}</td>
+                <td>{{ formatSelectedNights(registration) }}</td>
                 <td>{{ attendanceTypeText(registration) }}</td>
                 <td>{{ registration.churchName || '-' }}</td>
                 <td>{{ registrationStatusText(registration.registrationStatus) }}</td>
@@ -348,9 +348,9 @@
                   <div class="attendance-cell">
                     <strong>{{ attendanceTypeText(registration) }}</strong>
                     <div class="attendance-tags">
-                      <span>{{ formatSelectedDays(registration.selectedDays) }}</span>
-                      <span :class="{ muted: !parseSelection(registration.selectedNights).length }">
-                        {{ formatSelectedNights(registration.selectedNights) }}
+                      <span>{{ formatSelectedDays(registration) }}</span>
+                      <span :class="{ muted: !hasOvernightStay(registration) }">
+                        {{ formatSelectedNights(registration) }}
                       </span>
                     </div>
                   </div>
@@ -364,6 +364,14 @@
                         @click.stop="selectRegistration(registration)"
                     >
                       {{ selectedRegistration?.id === registration.id ? 'Sluiten' : 'Openen' }}
+                    </button>
+
+                    <button
+                        v-if="registration.hasPaymentProof"
+                        class="proof-button"
+                        @click.stop="openPaymentProof(registration)"
+                    >
+                      Bewijs
                     </button>
 
                     <button
@@ -416,12 +424,12 @@
 
                       <div>
                         <span>Dagen</span>
-                        <strong>{{ formatSelectedDays(registration.selectedDays) }}</strong>
+                        <strong>{{ formatSelectedDays(registration) }}</strong>
                       </div>
 
                       <div>
                         <span>Nachten</span>
-                        <strong>{{ formatSelectedNights(registration.selectedNights) }}</strong>
+                        <strong>{{ formatSelectedNights(registration) }}</strong>
                       </div>
 
                       <div>
@@ -499,6 +507,32 @@
         </div>
 
       </section>
+
+      <section class="audit-panel">
+        <div class="panel-heading audit-heading">
+          <div>
+            <p class="eyebrow">Audit log</p>
+            <h2>Laatste controles</h2>
+            <p>Zie snel wie recent is goedgekeurd, afgewezen of aangepast.</p>
+          </div>
+
+          <RouterLink class="secondary-button" to="/admin/audit">
+            Volledige log openen
+          </RouterLink>
+        </div>
+
+        <div v-if="recentRegistrationAuditLogs.length" class="audit-list">
+          <article v-for="log in recentRegistrationAuditLogs" :key="log.id" class="audit-item">
+            <div>
+              <strong>{{ auditActionText(log) }}</strong>
+              <span>{{ auditSubjectText(log) }}</span>
+            </div>
+            <p>{{ log.actorName || log.actorEmail || 'Onbekende admin' }} · {{ formatDateTime(log.createdAt) }}</p>
+          </article>
+        </div>
+
+        <p v-else class="muted-text">Nog geen recente registratie-acties.</p>
+      </section>
     </section>
 
     <div v-if="emailModalRegistration" class="modal-backdrop" @click.self="closeCustomEmailModal">
@@ -553,13 +587,15 @@ import {
   syncGoogleSheetForEvent,
   syncAllGoogleSheets,
   resendRegistrationEmail,
-  sendCustomRegistrationEmail
+  sendCustomRegistrationEmail,
+  fetchAdminAuditLogs
 } from '../services/api'
 import { authState } from '../stores/auth'
 
 const message = ref('')
 const success = ref(false)
 const registrations = ref([])
+const auditLogs = ref([])
 const selectedEventId = ref('')
 const selectedRegistration = ref(null)
 const activeRegistrationTab = ref('pending')
@@ -584,6 +620,12 @@ const customEmail = ref({
 })
 
 const isAdmin = computed(() => authState.user?.role === 'admin')
+
+const recentRegistrationAuditLogs = computed(() => {
+  return auditLogs.value
+      .filter(log => log.entityType === 'registration' || String(log.action || '').startsWith('registration.'))
+      .slice(0, 6)
+})
 
 const pendingCount = computed(() => {
   return registrations.value.filter(registration => registration.paymentStatus === 'pending').length
@@ -689,14 +731,14 @@ const filteredRegistrations = computed(() => {
       const count = selectedDayCount(registration)
 
       if (dayCount === 'full') {
-        if (registration.selectedDays) return false
+        if (count !== Number(registration.maxEventDays || count)) return false
       } else if (count !== Number(dayCount)) {
         return false
       }
     }
 
     if (nightFilter) {
-      const nights = parseSelection(registration.selectedNights)
+      const nights = effectiveSelectedNights(registration)
 
       if (nightFilter === 'none' && nights.length !== 0) return false
       if (nightFilter === '1_night' && nights.length !== 1) return false
@@ -763,6 +805,10 @@ async function loadRegistrations() {
   }
 }
 
+async function loadAuditLogs() {
+  auditLogs.value = await fetchAdminAuditLogs()
+}
+
 async function refreshGoogleStatus() {
   try {
     googleStatus.value = await fetchGoogleSheetsStatus()
@@ -782,7 +828,8 @@ onMounted(async () => {
   try {
     await Promise.all([
       refreshGoogleStatus(),
-      loadRegistrations()
+      loadRegistrations(),
+      loadAuditLogs()
     ])
   } catch (error) {
     success.value = false
@@ -798,6 +845,50 @@ function formatDate(date) {
     month: 'long',
     year: 'numeric'
   })
+}
+
+function formatDateTime(date) {
+  if (!date) return '-'
+
+  return new Date(date).toLocaleString('nl-NL', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function auditDetails(log) {
+  if (!log?.details) return {}
+  if (typeof log.details === 'object') return log.details
+
+  try {
+    return JSON.parse(log.details)
+  } catch {
+    return {}
+  }
+}
+
+function auditActionText(log) {
+  const details = auditDetails(log)
+
+  if (String(log.action || '') === 'registration.cancelled') return 'Aanmelding geannuleerd'
+  if (details.registrationStatus === 'rejected' || details.paymentStatus === 'rejected') return 'Afgewezen'
+  if (['confirmed', 'approved', 'goedgekeurd'].includes(details.registrationStatus) || details.paymentStatus === 'paid') {
+    return 'Goedgekeurd'
+  }
+  if (log.action === 'registration.custom_email_sent') return 'Persoonlijke mail gestuurd'
+  if (log.action === 'registration.email_resent') return 'Statusmail opnieuw gestuurd'
+
+  return 'Registratie aangepast'
+}
+
+function auditSubjectText(log) {
+  const details = auditDetails(log)
+  const name = details.userName || details.userEmail || `Registratie #${log.entityId || '-'}`
+  const event = details.eventTitle ? ` · ${details.eventTitle}` : ''
+
+  return `${name}${event}`
 }
 
 async function connectGoogle() {
@@ -889,15 +980,6 @@ function registrationStatusText(status) {
   return status || '-'
 }
 
-function formatSelectedDays(value) {
-  if (!value) return 'Volledig event'
-
-  return String(value)
-      .split(',')
-      .map(day => `Dag ${day.trim()}`)
-      .join(', ')
-}
-
 function parseSelection(value) {
   if (!value) return []
 
@@ -907,8 +989,52 @@ function parseSelection(value) {
       .filter(Number.isInteger)
 }
 
-function formatSelectedNights(value) {
-  const nights = parseSelection(value)
+function isLegacyFullEventRegistration(registration) {
+  const days = parseSelection(registration?.selectedDays)
+  const maxDays = Number(registration?.maxEventDays || 1)
+  const selectedPrice = Number(registration?.selectedPrice || 0)
+  const fullEventPrice = Number(registration?.fullEventPrice || 0)
+
+  if (!registration?.selectedDays && maxDays > 1) return true
+
+  return maxDays > 1
+      && days.length === 1
+      && days[0] === 1
+      && Number(registration?.selectedDayCount || 1) === 1
+      && fullEventPrice > 0
+      && selectedPrice >= fullEventPrice
+}
+
+function formatSelectedDays(registration) {
+  if (!registration?.selectedDays || isLegacyFullEventRegistration(registration)) return 'Hele conferentie'
+
+  return String(registration.selectedDays)
+      .split(',')
+      .map(day => `Dag ${day.trim()}`)
+      .join(', ')
+}
+
+function fullEventNights(registration) {
+  const maxDays = Math.min(3, Math.max(1, Number(registration?.maxEventDays || registration?.selectedDayCount || 1)))
+
+  return Array.from({ length: Math.max(0, maxDays - 1) }, (_, index) => index + 1)
+}
+
+function effectiveSelectedNights(registration) {
+  const nights = parseSelection(registration?.selectedNights)
+
+  if (nights.length) return nights
+  if (isLegacyFullEventRegistration(registration) && selectedDayCount(registration) > 1) return fullEventNights(registration)
+
+  return []
+}
+
+function hasOvernightStay(registration) {
+  return effectiveSelectedNights(registration).length > 0
+}
+
+function formatSelectedNights(registration) {
+  const nights = effectiveSelectedNights(registration)
 
   if (nights.length === 0) return 'Geen overnachting'
 
@@ -922,7 +1048,7 @@ function formatSelectedNights(value) {
 }
 
 function attendanceTypeText(registration) {
-  const nights = parseSelection(registration.selectedNights)
+  const nights = effectiveSelectedNights(registration)
   const dayCount = selectedDayCount(registration)
 
   if (dayCount >= 3 && nights.length >= 2) return 'Hele weekend'
@@ -935,13 +1061,13 @@ function attendanceTypeText(registration) {
 }
 
 function attendanceSummaryText(registration) {
-  return `${attendanceTypeText(registration)} · ${formatSelectedDays(registration.selectedDays)} · ${formatSelectedNights(registration.selectedNights)}`
+  return `${attendanceTypeText(registration)} · ${formatSelectedDays(registration)} · ${formatSelectedNights(registration)}`
 }
 
 function selectedDayCount(registration) {
+  if (isLegacyFullEventRegistration(registration)) return Number(registration?.maxEventDays || registration?.selectedDayCount || 1)
+  if (!registration?.selectedDays) return Number(registration?.maxEventDays || registration?.selectedDayCount || 1)
   if (registration.selectedDayCount) return Number(registration.selectedDayCount)
-
-  if (!registration.selectedDays) return 0
 
   return String(registration.selectedDays)
       .split(',')
@@ -1059,6 +1185,7 @@ async function approveRegistration(registration) {
     registration.registrationStatus = 'confirmed'
     registration.paymentMethod = paymentMethod
     selectedRegistration.value = registration
+    await loadAuditLogs()
 
     success.value = true
     message.value = `Registratie goedgekeurd (${paymentMethodText(paymentMethod)}). De gebruiker is nu officieel ingeschreven.`
@@ -1080,6 +1207,7 @@ async function markAsRejected(registration) {
     registration.paymentStatus = 'rejected'
     registration.registrationStatus = 'rejected'
     selectedRegistration.value = registration
+    await loadAuditLogs()
 
     success.value = true
     message.value = 'Registratie afgewezen.'
@@ -1100,6 +1228,7 @@ async function saveRegistrationNote(registration) {
 
     success.value = true
     message.value = 'Admin notitie opgeslagen.'
+    await loadAuditLogs()
   } catch (error) {
     success.value = false
     message.value = error.message
@@ -1322,6 +1451,7 @@ async function exportCsvForEvent(registration) {
 .registrations-panel,
 .event-export-panel,
 .google-panel,
+.audit-panel,
 .access-card {
   padding: 30px;
   border-radius: 14px;
@@ -1346,6 +1476,11 @@ async function exportCsvForEvent(registration) {
 
 .registrations-panel {
   order: 1;
+  margin-bottom: 34px;
+}
+
+.audit-panel {
+  order: 5;
   margin-bottom: 34px;
 }
 
@@ -1420,6 +1555,13 @@ async function exportCsvForEvent(registration) {
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
+}
+
+.audit-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
 }
 
 .panel-heading h2,
@@ -1548,6 +1690,52 @@ async function exportCsvForEvent(registration) {
   color: #64748b;
   font-size: 0.88rem;
   font-weight: 800;
+}
+
+.audit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.audit-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.audit-item:first-child {
+  border-top: 0;
+}
+
+.audit-item div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.audit-item strong {
+  color: #0f172a;
+}
+
+.audit-item span,
+.audit-item p {
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.audit-item span {
+  overflow-wrap: anywhere;
+}
+
+.audit-item p {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .event-export-grid {
@@ -2146,9 +2334,18 @@ td strong {
     flex-direction: column;
   }
 
+  .audit-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .export-heading .secondary-button {
     width: 100%;
     white-space: normal;
+  }
+
+  .audit-heading .secondary-button {
+    width: 100%;
   }
 
   .hero-count {
@@ -2183,7 +2380,8 @@ td strong {
 
   .registrations-panel,
   .event-export-panel,
-  .google-panel {
+  .google-panel,
+  .audit-panel {
     padding: 18px;
     border-radius: 12px;
   }
@@ -2294,6 +2492,16 @@ td strong {
 
   .event-export-actions > * {
     width: 100%;
+  }
+
+  .audit-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .audit-item p {
+    white-space: normal;
   }
 
   .detail-panel-heading,

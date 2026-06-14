@@ -309,10 +309,24 @@ function formatTransportOption(option) {
     return option || "";
 }
 
-function formatSelectedDays(selectedDays) {
-    if (!selectedDays) return "Volledig event";
+function selectedDayCount(registration) {
+    const days = parseSelection(registration.selectedDays);
 
-    return String(selectedDays)
+    if (isLegacyFullEventRegistration(registration)) {
+        return Number(registration.maxEventDays || registration.selectedDayCount || 1);
+    }
+
+    if (days.length > 0) {
+        return Number(registration.selectedDayCount || days.length || 0);
+    }
+
+    return Number(registration.maxEventDays || registration.selectedDayCount || 1);
+}
+
+function formatSelectedDays(registration) {
+    if (!registration.selectedDays || isLegacyFullEventRegistration(registration)) return "Hele conferentie";
+
+    return String(registration.selectedDays)
         .split(",")
         .map(day => `Dag ${day.trim()}`)
         .join(", ");
@@ -327,8 +341,35 @@ function parseSelection(value) {
         .filter(Number.isInteger);
 }
 
-function formatSelectedNights(selectedNights) {
-    const nights = parseSelection(selectedNights);
+function isLegacyFullEventRegistration(registration) {
+    const days = parseSelection(registration.selectedDays);
+    const maxDays = Number(registration.maxEventDays || 1);
+    const selectedPrice = Number(registration.selectedPrice || 0);
+    const fullEventPrice = Number(registration.fullEventPrice || 0);
+
+    if (!registration.selectedDays && maxDays > 1) return true;
+
+    return maxDays > 1
+        && days.length === 1
+        && days[0] === 1
+        && Number(registration.selectedDayCount || 1) === 1
+        && fullEventPrice > 0
+        && selectedPrice >= fullEventPrice;
+}
+
+function effectiveSelectedNights(registration) {
+    const nights = parseSelection(registration.selectedNights);
+
+    if (nights.length > 0) return nights;
+    if (isLegacyFullEventRegistration(registration) && selectedDayCount(registration) > 1) {
+        return Array.from({ length: Math.max(0, selectedDayCount(registration) - 1) }, (_, index) => index + 1);
+    }
+
+    return [];
+}
+
+function formatSelectedNights(registration) {
+    const nights = effectiveSelectedNights(registration);
 
     if (nights.length === 0) return "Geen overnachting";
 
@@ -341,18 +382,17 @@ function formatSelectedNights(selectedNights) {
         .join(", ");
 }
 
-function countSelectedNights(selectedNights) {
-    return parseSelection(selectedNights).length;
+function countSelectedNights(registration) {
+    return effectiveSelectedNights(registration).length;
 }
 
-function hasSelectedNight(selectedNights, night) {
-    return parseSelection(selectedNights).includes(night) ? "Ja" : "Nee";
+function hasSelectedNight(registration, night) {
+    return effectiveSelectedNights(registration).includes(night) ? "Ja" : "Nee";
 }
 
 function formatAttendanceType(registration) {
-    const days = parseSelection(registration.selectedDays);
-    const nights = parseSelection(registration.selectedNights);
-    const dayCount = Number(registration.selectedDayCount || days.length || 0);
+    const nights = effectiveSelectedNights(registration);
+    const dayCount = selectedDayCount(registration);
 
     if (dayCount >= 3 && nights.length >= 2) return "Hele weekend";
     if (nights.length === 1) return "1 nacht";
@@ -411,12 +451,12 @@ function createSheetRows(registrations) {
             registration.shirtSize || "",
             formatTransportOption(registration.transportOption),
             formatAttendanceType(registration),
-            formatSelectedDays(registration.selectedDays),
-            formatSelectedNights(registration.selectedNights),
-            registration.selectedDayCount ?? "",
-            countSelectedNights(registration.selectedNights),
-            hasSelectedNight(registration.selectedNights, 1),
-            hasSelectedNight(registration.selectedNights, 2),
+            formatSelectedDays(registration),
+            formatSelectedNights(registration),
+            selectedDayCount(registration),
+            countSelectedNights(registration),
+            hasSelectedNight(registration, 1),
+            hasSelectedNight(registration, 2),
             registration.selectedPrice ?? "",
             formatSheetDate(registration.birthDate),
             registration.churchName || "",
@@ -448,7 +488,7 @@ function createSimpleRows(headers, registrations, mapper) {
 function createWorkbookTabs(registrations) {
     const approvedRegistrations = registrations.filter(isOnLocationList);
     const busRegistrations = registrations.filter(registration => registration.transportOption === "bus");
-    const overnightRegistrations = registrations.filter(registration => parseSelection(registration.selectedNights).length > 0);
+    const overnightRegistrations = registrations.filter(registration => effectiveSelectedNights(registration).length > 0);
     const shirtRegistrations = registrations.filter(registration => registration.shirtSize);
 
     return [
@@ -469,10 +509,10 @@ function createWorkbookTabs(registrations) {
                     registration.userName || "",
                     registration.userEmail || "",
                     registration.phone || "",
-                    formatSelectedDays(registration.selectedDays),
-                    formatSelectedNights(registration.selectedNights),
-                    hasSelectedNight(registration.selectedNights, 1),
-                    hasSelectedNight(registration.selectedNights, 2),
+                    formatSelectedDays(registration),
+                    formatSelectedNights(registration),
+                    hasSelectedNight(registration, 1),
+                    hasSelectedNight(registration, 2),
                     registration.churchName || "",
                     registration.profileCity || "",
                     registration.registrationStatus || ""
@@ -489,11 +529,11 @@ function createWorkbookTabs(registrations) {
                     registration.userEmail || "",
                     registration.phone || "",
                     formatAttendanceType(registration),
-                    formatSelectedDays(registration.selectedDays),
-                    formatSelectedNights(registration.selectedNights),
-                    countSelectedNights(registration.selectedNights),
-                    hasSelectedNight(registration.selectedNights, 1),
-                    hasSelectedNight(registration.selectedNights, 2),
+                    formatSelectedDays(registration),
+                    formatSelectedNights(registration),
+                    countSelectedNights(registration),
+                    hasSelectedNight(registration, 1),
+                    hasSelectedNight(registration, 2),
                     registration.registrationStatus || ""
                 ]
             )

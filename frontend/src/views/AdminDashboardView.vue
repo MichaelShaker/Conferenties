@@ -89,6 +89,16 @@
 
             <b>→</b>
           </RouterLink>
+
+          <RouterLink to="/admin/audit" class="admin-action">
+            <div>
+              <span>05</span>
+              <h3>Audit log</h3>
+              <p>Bekijk wie registraties heeft goedgekeurd, afgewezen of aangepast.</p>
+            </div>
+
+            <b>→</b>
+          </RouterLink>
         </div>
       </div>
     </section>

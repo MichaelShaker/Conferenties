@@ -388,10 +388,24 @@ function formatTransportOption(option) {
     return option || "";
 }
 
-function formatSelectedDays(selectedDays) {
-    if (!selectedDays) return "Volledig event";
+function selectedDayCount(registration) {
+    const days = parseSelection(registration.selectedDays);
 
-    return String(selectedDays)
+    if (isLegacyFullEventRegistration(registration)) {
+        return Number(registration.maxEventDays || registration.selectedDayCount || 1);
+    }
+
+    if (days.length > 0) {
+        return Number(registration.selectedDayCount || days.length || 0);
+    }
+
+    return Number(registration.maxEventDays || registration.selectedDayCount || 1);
+}
+
+function formatSelectedDays(registration) {
+    if (!registration.selectedDays || isLegacyFullEventRegistration(registration)) return "Hele conferentie";
+
+    return String(registration.selectedDays)
         .split(",")
         .map(day => `Dag ${day.trim()}`)
         .join(", ");
@@ -406,8 +420,35 @@ function parseSelection(value) {
         .filter(Number.isInteger);
 }
 
-function formatSelectedNights(selectedNights) {
-    const nights = parseSelection(selectedNights);
+function isLegacyFullEventRegistration(registration) {
+    const days = parseSelection(registration.selectedDays);
+    const maxDays = Number(registration.maxEventDays || 1);
+    const selectedPrice = Number(registration.selectedPrice || 0);
+    const fullEventPrice = Number(registration.fullEventPrice || 0);
+
+    if (!registration.selectedDays && maxDays > 1) return true;
+
+    return maxDays > 1
+        && days.length === 1
+        && days[0] === 1
+        && Number(registration.selectedDayCount || 1) === 1
+        && fullEventPrice > 0
+        && selectedPrice >= fullEventPrice;
+}
+
+function effectiveSelectedNights(registration) {
+    const nights = parseSelection(registration.selectedNights);
+
+    if (nights.length > 0) return nights;
+    if (isLegacyFullEventRegistration(registration) && selectedDayCount(registration) > 1) {
+        return Array.from({ length: Math.max(0, selectedDayCount(registration) - 1) }, (_, index) => index + 1);
+    }
+
+    return [];
+}
+
+function formatSelectedNights(registration) {
+    const nights = effectiveSelectedNights(registration);
 
     if (nights.length === 0) return "Geen overnachting";
 
@@ -420,18 +461,17 @@ function formatSelectedNights(selectedNights) {
         .join(", ");
 }
 
-function countSelectedNights(selectedNights) {
-    return parseSelection(selectedNights).length;
+function countSelectedNights(registration) {
+    return effectiveSelectedNights(registration).length;
 }
 
-function hasSelectedNight(selectedNights, night) {
-    return parseSelection(selectedNights).includes(night) ? "Ja" : "Nee";
+function hasSelectedNight(registration, night) {
+    return effectiveSelectedNights(registration).includes(night) ? "Ja" : "Nee";
 }
 
 function formatAttendanceType(user) {
-    const days = parseSelection(user.selectedDays);
-    const nights = parseSelection(user.selectedNights);
-    const dayCount = Number(user.selectedDayCount || days.length || 0);
+    const nights = effectiveSelectedNights(user);
+    const dayCount = selectedDayCount(user);
 
     if (dayCount >= 3 && nights.length >= 2) return "Hele weekend";
     if (nights.length === 1) return "1 nacht";
@@ -514,12 +554,12 @@ async function exportApprovedUsersCsv(req, res) {
             user.shirtSize,
             formatTransportOption(user.transportOption),
             formatAttendanceType(user),
-            formatSelectedDays(user.selectedDays),
-            formatSelectedNights(user.selectedNights),
-            user.selectedDayCount,
-            countSelectedNights(user.selectedNights),
-            hasSelectedNight(user.selectedNights, 1),
-            hasSelectedNight(user.selectedNights, 2),
+            formatSelectedDays(user),
+            formatSelectedNights(user),
+            selectedDayCount(user),
+            countSelectedNights(user),
+            hasSelectedNight(user, 1),
+            hasSelectedNight(user, 2),
             user.selectedPrice,
             formatCsvDate(user.birthDate),
             user.churchName,

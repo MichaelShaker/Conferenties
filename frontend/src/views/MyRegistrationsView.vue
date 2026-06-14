@@ -74,12 +74,12 @@
 
             <div>
               <span>Dagen</span>
-              <strong>{{ formatSelectedDays(registration.selectedDays) }}</strong>
+              <strong>{{ formatSelectedDays(registration) }}</strong>
             </div>
 
             <div>
               <span>Overnachting</span>
-              <strong>{{ formatSelectedNights(registration.selectedNights) }}</strong>
+              <strong>{{ formatSelectedNights(registration) }}</strong>
             </div>
 
             <div>
@@ -163,15 +163,6 @@ function formatDateRange(startValue, endValue) {
   return `${start} t/m ${formatDate(endValue)}`
 }
 
-function formatSelectedDays(value) {
-  if (!value) return 'Volledig event'
-
-  return String(value)
-      .split(',')
-      .map(day => `Dag ${day.trim()}`)
-      .join(', ')
-}
-
 function parseSelection(value) {
   if (!value) return []
 
@@ -181,8 +172,52 @@ function parseSelection(value) {
       .filter(Number.isInteger)
 }
 
-function formatSelectedNights(value) {
-  const nights = parseSelection(value)
+function isLegacyFullEventRegistration(registration) {
+  const days = parseSelection(registration?.selectedDays)
+  const maxDays = Number(registration?.maxEventDays || 1)
+  const selectedPrice = Number(registration?.selectedPrice || 0)
+  const fullEventPrice = Number(registration?.fullEventPrice || 0)
+
+  if (!registration?.selectedDays && maxDays > 1) return true
+
+  return maxDays > 1
+      && days.length === 1
+      && days[0] === 1
+      && Number(registration?.selectedDayCount || 1) === 1
+      && fullEventPrice > 0
+      && selectedPrice >= fullEventPrice
+}
+
+function formatSelectedDays(registration) {
+  if (!registration?.selectedDays || isLegacyFullEventRegistration(registration)) return 'Hele conferentie'
+
+  return String(registration.selectedDays)
+      .split(',')
+      .map(day => `Dag ${day.trim()}`)
+      .join(', ')
+}
+
+function selectedDayCount(registration) {
+  if (isLegacyFullEventRegistration(registration)) return Number(registration?.maxEventDays || registration?.selectedDayCount || 1)
+  if (!registration?.selectedDays) return Number(registration?.maxEventDays || registration?.selectedDayCount || 1)
+  if (registration.selectedDayCount) return Number(registration.selectedDayCount)
+
+  return parseSelection(registration.selectedDays).length
+}
+
+function effectiveSelectedNights(registration) {
+  const nights = parseSelection(registration?.selectedNights)
+
+  if (nights.length) return nights
+  if (isLegacyFullEventRegistration(registration) && selectedDayCount(registration) > 1) {
+    return Array.from({ length: Math.max(0, selectedDayCount(registration) - 1) }, (_, index) => index + 1)
+  }
+
+  return []
+}
+
+function formatSelectedNights(registration) {
+  const nights = effectiveSelectedNights(registration)
 
   if (nights.length === 0) return 'Geen overnachting'
 

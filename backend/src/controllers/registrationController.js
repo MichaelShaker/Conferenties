@@ -535,7 +535,14 @@ async function updateRegistration(req, res) {
             action: "registration.updated",
             entityType: "registration",
             entityId: Number(id),
-            details: { paymentStatus, registrationStatus }
+            details: {
+                paymentStatus,
+                registrationStatus,
+                paymentMethod: updatedRegistration.paymentMethod,
+                userName: updatedRegistration.userName,
+                userEmail: updatedRegistration.userEmail,
+                eventTitle: updatedRegistration.eventTitle
+            }
         });
 
         res.json({
