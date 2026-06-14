@@ -347,7 +347,7 @@
                 <td data-label="Verblijf">
                   <div class="attendance-cell">
                     <strong>{{ attendanceTypeText(registration) }}</strong>
-                    <div class="attendance-tags">
+                    <div v-if="attendanceTagList(registration).length" class="attendance-tags">
                       <span>{{ formatSelectedDays(registration) }}</span>
                       <span :class="{ muted: !hasOvernightStay(registration) }">
                         {{ formatSelectedNights(registration) }}
@@ -1014,6 +1014,21 @@ function formatSelectedDays(registration) {
       .join(', ')
 }
 
+function isFullConferenceRegistration(registration) {
+  const maxDays = Number(registration?.maxEventDays || registration?.selectedDayCount || 1)
+
+  return maxDays > 1 && selectedDayCount(registration) >= maxDays
+}
+
+function attendanceTagList(registration) {
+  if (isFullConferenceRegistration(registration)) return []
+
+  return [
+    formatSelectedDays(registration),
+    formatSelectedNights(registration)
+  ]
+}
+
 function fullEventNights(registration) {
   const maxDays = Math.min(3, Math.max(1, Number(registration?.maxEventDays || registration?.selectedDayCount || 1)))
 
@@ -1051,7 +1066,7 @@ function attendanceTypeText(registration) {
   const nights = effectiveSelectedNights(registration)
   const dayCount = selectedDayCount(registration)
 
-  if (dayCount >= 3 && nights.length >= 2) return 'Hele weekend'
+  if (isFullConferenceRegistration(registration)) return 'Hele conferentie'
   if (nights.length === 1) return '1 nacht'
   if (nights.length > 1) return `${nights.length} nachten`
   if (dayCount === 1) return '1 dag'
