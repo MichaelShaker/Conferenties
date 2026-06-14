@@ -318,10 +318,24 @@ async function updateRegistrationStatus(id, paymentStatus, registrationStatus, a
             admin_note = ?,
             approved_at = CASE
                 WHEN ? IN ('confirmed', 'approved', 'goedgekeurd') THEN COALESCE(approved_at, NOW())
+                WHEN ? = 'pending' THEN NULL
                 ELSE approved_at
+            END,
+            cancelled_at = CASE
+                WHEN ? = 'pending' THEN NULL
+                ELSE cancelled_at
             END
         WHERE id = ?
-    `, [paymentStatus, registrationStatus, paymentMethod || null, adminNote || null, registrationStatus, id]);
+    `, [
+        paymentStatus,
+        registrationStatus,
+        paymentMethod || null,
+        adminNote || null,
+        registrationStatus,
+        registrationStatus,
+        registrationStatus,
+        id
+    ]);
 
     const [rows] = await pool.query(`
         SELECT

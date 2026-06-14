@@ -394,6 +394,14 @@
                     >
                       Afwijzen
                     </button>
+
+                    <button
+                        v-if="isRejectedRegistration(registration)"
+                        class="restore-button"
+                        @click.stop="restoreRegistrationToPending(registration)"
+                    >
+                      Terugzetten
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -511,6 +519,14 @@
                           @click.stop="markAsRejected(registration)"
                       >
                         Afwijzen
+                      </button>
+
+                      <button
+                          v-if="isRejectedRegistration(registration)"
+                          class="restore-button"
+                          @click.stop="restoreRegistrationToPending(registration)"
+                      >
+                        Terugzetten naar openstaand
                       </button>
                     </div>
                   </section>
@@ -996,6 +1012,7 @@ function registrationStatusText(status) {
   if (status === 'approved') return 'Goedgekeurd'
   if (status === 'goedgekeurd') return 'Goedgekeurd'
   if (status === 'rejected') return 'Afgewezen'
+  if (status === 'cancelled') return 'Geannuleerd'
 
   return status || '-'
 }
@@ -1135,7 +1152,8 @@ function isApprovedRegistration(registration) {
 
 function isRejectedRegistration(registration) {
   return registration.paymentStatus === 'rejected'
-      || ['rejected', 'denied', 'afgewezen'].includes(registration.registrationStatus)
+      || Boolean(registration.cancelledAt)
+      || ['rejected', 'denied', 'afgewezen', 'cancelled', 'canceled', 'geannuleerd'].includes(registration.registrationStatus)
 }
 
 function isPendingRegistration(registration) {
@@ -1246,6 +1264,29 @@ async function markAsRejected(registration) {
 
     success.value = true
     message.value = 'Registratie afgewezen.'
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  }
+}
+
+async function restoreRegistrationToPending(registration) {
+  try {
+    await updateRegistrationStatus(registration.id, {
+      paymentStatus: 'pending',
+      registrationStatus: 'pending',
+      adminNote: registration.adminNote || null,
+      paymentMethod: registration.paymentMethod || null
+    })
+
+    registration.paymentStatus = 'pending'
+    registration.registrationStatus = 'pending'
+    registration.cancelledAt = null
+    selectedRegistration.value = registration
+    await loadAuditLogs()
+
+    success.value = true
+    message.value = 'Registratie teruggezet naar openstaand. Je kunt hem opnieuw beoordelen.'
   } catch (error) {
     success.value = false
     message.value = error.message
@@ -2075,6 +2116,7 @@ td strong {
 
 .proof-button,
 .details-button,
+.restore-button,
 .approve-button,
 .reject-button {
   min-height: 44px;
@@ -2120,6 +2162,15 @@ td strong {
 
 .details-button:hover {
   background: #e2e8f0;
+}
+
+.restore-button {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.restore-button:hover {
+  background: #ffedd5;
 }
 
 .approve-button {
