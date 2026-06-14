@@ -326,46 +326,152 @@
             </thead>
 
             <tbody>
-            <tr
-                v-for="registration in filteredRegistrations"
-                :key="registration.id"
-                :class="{ selected: selectedRegistration?.id === registration.id }"
-                @click="selectRegistration(registration)"
-            >
-              <td data-label="Gebruiker">
-                <div class="user-cell">
-                  <strong>{{ registration.userName }}</strong>
-                  <span>{{ registration.eventTitle }}</span>
-                </div>
-              </td>
+            <template v-for="registration in filteredRegistrations" :key="registration.id">
+              <tr
+                  :class="{ selected: selectedRegistration?.id === registration.id }"
+                  @click="selectRegistration(registration)"
+              >
+                <td data-label="Gebruiker">
+                  <div class="user-cell">
+                    <strong>{{ registration.userName }}</strong>
+                    <span>{{ registration.eventTitle }}</span>
+                  </div>
+                </td>
 
-              <td data-label="Betaald">
-                <span :class="['status-pill', registration.paymentStatus]">
-                  {{ paymentStatusText(registration.paymentStatus) }}
-                </span>
-              </td>
+                <td data-label="Betaald">
+                  <span :class="['status-pill', registration.paymentStatus]">
+                    {{ paymentStatusText(registration.paymentStatus) }}
+                  </span>
+                </td>
 
-              <td data-label="Verblijf">{{ attendanceSummaryText(registration) }}</td>
-              <td data-label="Prijs">€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</td>
+                <td data-label="Verblijf">{{ attendanceSummaryText(registration) }}</td>
+                <td data-label="Prijs">€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</td>
 
-              <td data-label="Actie">
-                <div class="action-buttons">
-                  <button
-                      class="approve-button"
-                      @click.stop="approveRegistration(registration)"
-                  >
-                    Goedkeuren
-                  </button>
+                <td data-label="Actie">
+                  <div class="action-buttons">
+                    <button
+                        class="approve-button"
+                        @click.stop="approveRegistration(registration)"
+                    >
+                      Goedkeuren
+                    </button>
 
-                  <button
-                      class="reject-button"
-                      @click.stop="markAsRejected(registration)"
-                  >
-                    Afwijzen
-                  </button>
-                </div>
-              </td>
-            </tr>
+                    <button
+                        class="reject-button"
+                        @click.stop="markAsRejected(registration)"
+                    >
+                      Afwijzen
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <tr v-if="selectedRegistration?.id === registration.id" class="detail-row">
+                <td colspan="5">
+                  <section class="registration-detail-panel">
+                    <div class="detail-panel-heading">
+                      <div>
+                        <p class="eyebrow">Details</p>
+                        <h3>{{ registration.userName }}</h3>
+                        <p>{{ registration.eventTitle }}</p>
+                      </div>
+
+                      <button type="button" class="icon-button" @click.stop="selectedRegistration = null" aria-label="Details sluiten">
+                        x
+                      </button>
+                    </div>
+
+                    <div class="detail-grid">
+                      <div>
+                        <span>E-mail</span>
+                        <strong>{{ registration.userEmail || '-' }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Telefoon</span>
+                        <strong>{{ registration.userPhone || '-' }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Datum</span>
+                        <strong>{{ formatDate(registration.eventDate) }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Dagen</span>
+                        <strong>{{ formatSelectedDays(registration.selectedDays) }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Overnachting</span>
+                        <strong>{{ formatSelectedNights(registration.selectedNights) }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Type verblijf</span>
+                        <strong>{{ attendanceTypeText(registration) }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Prijs</span>
+                        <strong>€{{ Number(registration.selectedPrice || 0).toFixed(2) }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Shirtmaat</span>
+                        <strong>{{ registration.shirtSize || '-' }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Vervoer</span>
+                        <strong>{{ transportOptionText(registration.transportOption) }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Kerk</span>
+                        <strong>{{ registration.churchName || '-' }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Status</span>
+                        <strong>{{ registrationStatusText(registration.registrationStatus) }}</strong>
+                      </div>
+                    </div>
+
+                    <label class="admin-note-field" @click.stop>
+                      <span>Admin notitie</span>
+                      <textarea
+                          v-model="registration.adminNote"
+                          rows="3"
+                          placeholder="Bijv. betaling besproken, bijzonderheid, later opvolgen..."
+                      />
+                    </label>
+
+                    <div class="detail-actions">
+                      <button
+                          v-if="registration.hasPaymentProof"
+                          class="proof-button"
+                          @click.stop="openPaymentProof(registration)"
+                      >
+                        Betaalbewijs openen
+                      </button>
+
+                      <button class="secondary-button" @click.stop="saveRegistrationNote(registration)">
+                        Notitie opslaan
+                      </button>
+
+                      <button class="approve-button" @click.stop="approveRegistration(registration)">
+                        Goedkeuren
+                      </button>
+
+                      <button class="reject-button" @click.stop="markAsRejected(registration)">
+                        Afwijzen
+                      </button>
+                    </div>
+                  </section>
+                </td>
+              </tr>
+            </template>
             </tbody>
           </table>
 
@@ -375,94 +481,6 @@
           </div>
         </div>
 
-        <aside v-if="selectedRegistration" class="registration-detail-panel">
-          <div class="detail-panel-heading">
-            <div>
-              <p class="eyebrow">Details</p>
-              <h3>{{ selectedRegistration.userName }}</h3>
-              <p>{{ selectedRegistration.eventTitle }}</p>
-            </div>
-
-            <button type="button" class="icon-button" @click="selectedRegistration = null" aria-label="Details sluiten">
-              x
-            </button>
-          </div>
-
-          <div class="detail-grid">
-            <div>
-              <span>E-mail</span>
-              <strong>{{ selectedRegistration.userEmail || '-' }}</strong>
-            </div>
-
-            <div>
-              <span>Telefoon</span>
-              <strong>{{ selectedRegistration.userPhone || '-' }}</strong>
-            </div>
-
-            <div>
-              <span>Datum</span>
-              <strong>{{ formatDate(selectedRegistration.eventDate) }}</strong>
-            </div>
-
-            <div>
-              <span>Dagen</span>
-              <strong>{{ formatSelectedDays(selectedRegistration.selectedDays) }}</strong>
-            </div>
-
-            <div>
-              <span>Overnachting</span>
-              <strong>{{ formatSelectedNights(selectedRegistration.selectedNights) }}</strong>
-            </div>
-
-            <div>
-              <span>Type verblijf</span>
-              <strong>{{ attendanceTypeText(selectedRegistration) }}</strong>
-            </div>
-
-            <div>
-              <span>Prijs</span>
-              <strong>€{{ Number(selectedRegistration.selectedPrice || 0).toFixed(2) }}</strong>
-            </div>
-
-            <div>
-              <span>Shirtmaat</span>
-              <strong>{{ selectedRegistration.shirtSize || '-' }}</strong>
-            </div>
-
-            <div>
-              <span>Vervoer</span>
-              <strong>{{ transportOptionText(selectedRegistration.transportOption) }}</strong>
-            </div>
-
-            <div>
-              <span>Kerk</span>
-              <strong>{{ selectedRegistration.churchName || '-' }}</strong>
-            </div>
-
-            <div>
-              <span>Status</span>
-              <strong>{{ registrationStatusText(selectedRegistration.registrationStatus) }}</strong>
-            </div>
-          </div>
-
-          <div class="detail-actions">
-            <button
-                v-if="selectedRegistration.hasPaymentProof"
-                class="proof-button"
-                @click="openPaymentProof(selectedRegistration)"
-            >
-              Betaalbewijs openen
-            </button>
-
-            <button class="approve-button" @click="approveRegistration(selectedRegistration)">
-              Goedkeuren
-            </button>
-
-            <button class="reject-button" @click="markAsRejected(selectedRegistration)">
-              Afwijzen
-            </button>
-          </div>
-        </aside>
       </section>
     </section>
 
@@ -1681,6 +1699,19 @@ td strong {
   color: #0f172a;
 }
 
+.registrations-panel tbody tr.detail-row {
+  background: transparent;
+}
+
+.registrations-panel tbody tr.detail-row:hover {
+  background: transparent;
+}
+
+.detail-row > td {
+  padding: 0 0 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
 .user-cell {
   display: flex;
   flex-direction: column;
@@ -1812,7 +1843,7 @@ td strong {
 }
 
 .registration-detail-panel {
-  margin-top: 22px;
+  margin: 0;
   padding: 22px;
   border: 1px solid #dbe3ef;
   border-radius: 12px;
@@ -1864,6 +1895,37 @@ td strong {
 .detail-grid strong {
   color: #0f172a;
   overflow-wrap: anywhere;
+}
+
+.admin-note-field {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.admin-note-field span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-note-field textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 13px 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  resize: vertical;
+}
+
+.admin-note-field textarea:focus {
+  outline: 3px solid rgba(37, 99, 235, 0.16);
+  border-color: #2563eb;
 }
 
 .detail-actions {
@@ -2137,6 +2199,23 @@ td strong {
     font-weight: 900;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  .registrations-panel tr.detail-row {
+    margin-top: -10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .registrations-panel tr.detail-row td {
+    display: block;
+    padding: 0 0 14px;
+    border-bottom: 0;
+  }
+
+  .registrations-panel tr.detail-row td::before {
+    content: none;
   }
 
   .action-buttons {
