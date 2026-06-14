@@ -380,6 +380,7 @@
                     </button>
 
                     <button
+                        v-if="isPendingRegistration(registration)"
                         class="approve-button"
                         @click.stop="approveRegistration(registration)"
                     >
@@ -387,6 +388,7 @@
                     </button>
 
                     <button
+                        v-if="isPendingRegistration(registration)"
                         class="reject-button"
                         @click.stop="markAsRejected(registration)"
                     >
@@ -495,11 +497,19 @@
                         Notitie opslaan
                       </button>
 
-                      <button class="approve-button" @click.stop="approveRegistration(registration)">
+                      <button
+                          v-if="isPendingRegistration(registration)"
+                          class="approve-button"
+                          @click.stop="approveRegistration(registration)"
+                      >
                         Goedkeuren
                       </button>
 
-                      <button class="reject-button" @click.stop="markAsRejected(registration)">
+                      <button
+                          v-if="isPendingRegistration(registration)"
+                          class="reject-button"
+                          @click.stop="markAsRejected(registration)"
+                      >
                         Afwijzen
                       </button>
                     </div>
