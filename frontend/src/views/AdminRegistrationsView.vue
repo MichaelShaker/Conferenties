@@ -56,40 +56,6 @@
         </div>
       </div>
 
-      <!-- GOOGLE SHEETS -->
-      <section class="google-panel">
-        <div>
-          <p class="eyebrow">Google Sheets</p>
-          <h2>Automatische event-spreadsheets</h2>
-          <p v-if="googleStatus.connected">
-            Verbonden met {{ googleStatus.email || 'Google' }}. Nieuwe events, registraties, betalingen en statuswijzigingen worden automatisch gesynchroniseerd.
-          </p>
-          <p v-else>
-            Verbind een Google-account om per event automatisch een online deelnemerslijst bij te houden.
-          </p>
-        </div>
-
-        <button
-            v-if="!googleStatus.connected"
-            type="button"
-            class="google-button"
-            @click="connectGoogle"
-            :disabled="googleLoading"
-        >
-          {{ googleLoading ? 'Bezig...' : 'Google verbinden' }}
-        </button>
-
-        <button
-            v-else
-            type="button"
-            class="secondary-button"
-            @click="syncAllSheets"
-            :disabled="googleLoading"
-        >
-          {{ googleLoading ? 'Sheets bijwerken...' : 'Alles automatisch klaarzetten' }}
-        </button>
-      </section>
-
       <!-- EVENT EXPORTS -->
       <section class="event-export-panel">
         <div class="panel-heading export-heading">
@@ -223,6 +189,40 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- GOOGLE SHEETS -->
+      <section class="google-panel">
+        <div>
+          <p class="eyebrow">Google Sheets</p>
+          <h2>Automatische event-spreadsheets</h2>
+          <p v-if="googleStatus.connected">
+            Verbonden met {{ googleStatus.email || 'Google' }}. Nieuwe events, registraties, betalingen en statuswijzigingen worden automatisch gesynchroniseerd.
+          </p>
+          <p v-else>
+            Verbind een Google-account om per event automatisch een online deelnemerslijst bij te houden.
+          </p>
+        </div>
+
+        <button
+            v-if="!googleStatus.connected"
+            type="button"
+            class="google-button"
+            @click="connectGoogle"
+            :disabled="googleLoading"
+        >
+          {{ googleLoading ? 'Bezig...' : 'Google verbinden' }}
+        </button>
+
+        <button
+            v-else
+            type="button"
+            class="secondary-button"
+            @click="syncAllSheets"
+            :disabled="googleLoading"
+        >
+          {{ googleLoading ? 'Sheets bijwerken...' : 'Alles automatisch klaarzetten' }}
+        </button>
       </section>
 
       <!-- TABLE -->
