@@ -104,6 +104,80 @@
             <span :class="{ done: registration.registrationStatus === 'confirmed' }">Bevestigd</span>
           </div>
 
+          <section
+              v-if="canManagePayment(registration)"
+              class="payment-action-panel"
+          >
+            <div class="payment-action-header">
+              <div>
+                <span>Betaling</span>
+                <strong>{{ paymentActionTitle(registration) }}</strong>
+              </div>
+
+              <strong class="payment-amount">
+                €{{ Number(registration.selectedPrice ?? registration.price).toFixed(2) }}
+              </strong>
+            </div>
+
+            <p>
+              Rond je betaling af en upload hier direct je betaalbewijs. Je hoeft hiervoor niet terug naar de eventpagina.
+            </p>
+
+            <div class="payment-tools">
+              <a
+                  v-if="selectedPaymentLink(registration)"
+                  :href="selectedPaymentLink(registration)"
+                  target="_blank"
+                  class="pay-link-button"
+              >
+                Open betaallink
+              </a>
+
+              <label class="proof-upload-button" :for="`payment-proof-${registration.id}`">
+                {{ registration.paymentStatus === 'proof_uploaded' ? 'Nieuw bewijs uploaden' : 'Betaalbewijs uploaden' }}
+              </label>
+
+              <input
+                  :id="`payment-proof-${registration.id}`"
+                  class="proof-input"
+                  type="file"
+                  accept="image/*"
+                  :disabled="uploadingProofId === registration.id"
+                  @change="handlePaymentProofChange($event, registration)"
+              />
+            </div>
+
+            <div class="payment-extra">
+              <div v-if="selectedPaymentQrUrl(registration)" class="qr-wrapper">
+                <img :src="selectedPaymentQrUrl(registration)" alt="Betaal QR-code" />
+              </div>
+
+              <div class="payment-instructions">
+                <strong>Betaalinformatie</strong>
+                <span>{{ registration.paymentContactName || '-' }}</span>
+                <span>{{ registration.paymentContactPhone || '-' }}</span>
+                <p v-if="registration.paymentInstructions">
+                  {{ registration.paymentInstructions }}
+                </p>
+              </div>
+            </div>
+
+            <p v-if="uploadingProofId === registration.id" class="proof-status">
+              Betaalbewijs uploaden...
+            </p>
+
+            <p v-else-if="registration.paymentStatus === 'proof_uploaded'" class="proof-status">
+              Betaalbewijs ontvangen. Een admin controleert je betaling.
+            </p>
+
+            <img
+                v-if="proofPreviews[registration.id]"
+                :src="proofPreviews[registration.id]"
+                alt="Betaalbewijs voorbeeld"
+                class="proof-preview"
+            />
+          </section>
+
           <button
               v-if="!registration.cancelledAt && registration.registrationStatus !== 'confirmed'"
               class="cancel-registration-button"
@@ -135,12 +209,14 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import StatusMessage from '../components/StatusMessage.vue'
-import { cancelRegistration, fetchMyRegistrations } from '../services/api'
+import { cancelRegistration, fetchMyRegistrations, uploadPaymentProof } from '../services/api'
 
 const loading = ref(false)
 const message = ref('')
 const success = ref(false)
 const registrations = ref([])
+const uploadingProofId = ref(null)
+const proofPreviews = ref({})
 
 function formatDate(date) {
   if (!date) return '-'
@@ -235,6 +311,99 @@ function transportOptionText(option) {
   if (option === 'bus') return 'Bus tegen aanvullende kosten'
 
   return '-'
+}
+
+function canManagePayment(registration) {
+  if (registration.cancelledAt) return false
+  if (['confirmed', 'approved', 'goedgekeurd'].includes(registration.registrationStatus)) return false
+  if (['rejected', 'cancelled', 'canceled'].includes(registration.registrationStatus)) return false
+
+  return registration.paymentStatus !== 'paid'
+}
+
+function paymentActionTitle(registration) {
+  if (registration.paymentStatus === 'proof_uploaded') return 'Bewijs geüpload'
+  if (registration.paymentStatus === 'rejected') return 'Betaling afgewezen'
+
+  return 'Nog te betalen'
+}
+
+function selectedPaymentLink(registration) {
+  const count = selectedDayCount(registration)
+
+  if (count >= 3) return registration.paymentLinkThreeDays || registration.paymentLink || ''
+  if (count === 2) return registration.paymentLinkTwoDays || registration.paymentLink || ''
+
+  return registration.paymentLinkOneDay || registration.paymentLink || ''
+}
+
+function selectedPaymentQrUrl(registration) {
+  const count = selectedDayCount(registration)
+
+  if (count >= 3) return registration.paymentQrUrlThreeDays || registration.paymentQrUrl || ''
+  if (count === 2) return registration.paymentQrUrlTwoDays || registration.paymentQrUrl || ''
+
+  return registration.paymentQrUrlOneDay || registration.paymentQrUrl || ''
+}
+
+function compressPaymentProof(file, maxWidth = 900, quality = 0.65) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      const img = new Image()
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const scale = Math.min(maxWidth / img.width, 1)
+
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+
+      img.onerror = reject
+      img.src = reader.result
+    }
+
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+async function handlePaymentProofChange(eventInput, registration) {
+  const file = eventInput.target.files[0]
+
+  if (!file) return
+
+  uploadingProofId.value = registration.id
+  message.value = ''
+
+  try {
+    const proof = await compressPaymentProof(file)
+
+    await uploadPaymentProof(registration.id, proof)
+
+    proofPreviews.value = {
+      ...proofPreviews.value,
+      [registration.id]: proof
+    }
+    registration.paymentStatus = 'proof_uploaded'
+    registration.paymentMethod = 'tikkie'
+
+    success.value = true
+    message.value = 'Betaalbewijs geüpload. Een admin controleert je betaling.'
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  } finally {
+    uploadingProofId.value = null
+    eventInput.target.value = ''
+  }
 }
 
 onMounted(async () => {
@@ -493,6 +662,141 @@ async function cancelMyRegistration(registration) {
   color: #166534;
 }
 
+.payment-action-panel {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+
+.payment-action-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
+.payment-action-header span {
+  display: block;
+  margin-bottom: 4px;
+  color: #2563eb;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.payment-action-header strong {
+  color: #0f172a;
+}
+
+.payment-amount {
+  white-space: nowrap;
+}
+
+.payment-action-panel > p {
+  margin-bottom: 14px;
+  color: #475569;
+  line-height: 1.65;
+}
+
+.payment-tools {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.pay-link-button,
+.proof-upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pay-link-button {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.proof-upload-button {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #dbe3ef;
+}
+
+.proof-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.payment-extra {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.qr-wrapper {
+  width: 132px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #dbe3ef;
+}
+
+.qr-wrapper img,
+.proof-preview {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+}
+
+.payment-instructions {
+  min-width: 0;
+  color: #475569;
+}
+
+.payment-instructions strong,
+.payment-instructions span {
+  display: block;
+}
+
+.payment-instructions strong {
+  margin-bottom: 6px;
+  color: #0f172a;
+}
+
+.payment-instructions p {
+  margin-top: 8px;
+  white-space: pre-line;
+  line-height: 1.6;
+}
+
+.proof-status {
+  margin-top: 12px;
+  margin-bottom: 0;
+  color: #1d4ed8;
+  font-weight: 900;
+}
+
+.proof-preview {
+  max-width: 260px;
+  margin-top: 14px;
+  border: 1px solid #dbe3ef;
+}
+
 .cancel-registration-button {
   margin-top: 16px;
   min-height: 46px;
@@ -609,6 +913,25 @@ async function cancelMyRegistration(registration) {
 
   .registration-details {
     grid-template-columns: 1fr;
+  }
+
+  .payment-action-header,
+  .payment-extra {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-action-header {
+    display: grid;
+  }
+
+  .qr-wrapper {
+    width: 100%;
+    max-width: 180px;
+  }
+
+  .pay-link-button,
+  .proof-upload-button {
+    width: 100%;
   }
 
   .registrations-list,

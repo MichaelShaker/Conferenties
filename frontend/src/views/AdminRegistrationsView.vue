@@ -187,6 +187,7 @@
                 <th>Naam</th>
                 <th>E-mail</th>
                 <th>Telefoon</th>
+                <th>Geslacht</th>
                 <th>Shirtmaat</th>
                 <th>Vervoer</th>
                 <th>Dagen</th>
@@ -203,6 +204,7 @@
                 <td><strong>{{ registration.userName }}</strong></td>
                 <td>{{ registration.userEmail }}</td>
                 <td>{{ registration.userPhone || '-' }}</td>
+                <td>{{ genderText(registration.userGender || registration.gender) }}</td>
                 <td>{{ registration.shirtSize || '-' }}</td>
                 <td>{{ transportOptionText(registration.transportOption) }}</td>
                 <td>{{ formatSelectedDays(registration) }}</td>
@@ -277,6 +279,17 @@
           </label>
 
           <label>
+            <span>Geslacht</span>
+            <select v-model="registrationFilters.gender">
+              <option value="">Alle geslachten</option>
+              <option value="male">Man</option>
+              <option value="female">Vrouw</option>
+              <option value="other">Anders / liever niet zeggen</option>
+              <option value="missing">Niet ingevuld</option>
+            </select>
+          </label>
+
+          <label>
             <span>Dagen</span>
             <select v-model="registrationFilters.dayCount">
               <option value="">Alle dagen</option>
@@ -335,6 +348,12 @@
                   <div class="user-cell">
                     <strong>{{ registration.userName }}</strong>
                     <span>{{ registration.eventTitle }}</span>
+                    <span v-if="registration.userPhone" class="user-phone">
+                      {{ registration.userPhone }}
+                    </span>
+                    <span class="user-meta">
+                      {{ genderText(registration.userGender) }}
+                    </span>
                   </div>
                 </td>
 
@@ -430,6 +449,11 @@
                       <div>
                         <span>Telefoon</span>
                         <strong>{{ registration.userPhone || '-' }}</strong>
+                      </div>
+
+                      <div>
+                        <span>Geslacht</span>
+                        <strong>{{ genderText(registration.userGender) }}</strong>
                       </div>
 
                       <div>
@@ -640,6 +664,7 @@ const registrationFilters = ref({
   search: '',
   eventId: '',
   transport: '',
+  gender: '',
   dayCount: '',
   nightFilter: ''
 })
@@ -734,6 +759,7 @@ const filteredRegistrations = computed(() => {
   const searchTerm = registrationFilters.value.search.trim().toLowerCase()
   const eventId = registrationFilters.value.eventId
   const transport = registrationFilters.value.transport
+  const gender = registrationFilters.value.gender
   const dayCount = registrationFilters.value.dayCount
   const nightFilter = registrationFilters.value.nightFilter
 
@@ -744,7 +770,8 @@ const filteredRegistrations = computed(() => {
         registration.userEmail,
         registration.userPhone,
         registration.eventTitle,
-        registration.churchName
+        registration.churchName,
+        genderText(registration.userGender)
       ]
           .filter(Boolean)
           .join(' ')
@@ -760,6 +787,12 @@ const filteredRegistrations = computed(() => {
     if (transport === 'missing') {
       if (registration.transportOption) return false
     } else if (transport && registration.transportOption !== transport) {
+      return false
+    }
+
+    if (gender === 'missing') {
+      if (registration.userGender) return false
+    } else if (gender && registration.userGender !== gender) {
       return false
     }
 
@@ -1135,11 +1168,20 @@ function transportOptionText(option) {
   return '-'
 }
 
+function genderText(gender) {
+  if (gender === 'male') return 'Man'
+  if (gender === 'female') return 'Vrouw'
+  if (gender === 'other') return 'Anders / liever niet zeggen'
+
+  return '-'
+}
+
 function clearRegistrationFilters() {
   registrationFilters.value = {
     search: '',
     eventId: '',
     transport: '',
+    gender: '',
     dayCount: '',
     nightFilter: ''
   }
@@ -2003,6 +2045,12 @@ td strong {
 .extra-cell span {
   color: #64748b;
   font-size: 0.88rem;
+}
+
+.user-cell .user-phone {
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 800;
 }
 
 .extra-cell {

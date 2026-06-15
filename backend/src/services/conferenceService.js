@@ -250,6 +250,7 @@ async function getApprovedUsersForConference(conferenceId) {
             up.first_name AS firstName,
             up.last_name AS lastName,
             up.phone,
+            up.gender,
             up.birth_date AS birthDate,
             up.city AS profileCity,
             up.rank_title AS rankTitle,

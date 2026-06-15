@@ -388,6 +388,14 @@ function formatTransportOption(option) {
     return option || "";
 }
 
+function formatGender(gender) {
+    if (gender === "male") return "Man";
+    if (gender === "female") return "Vrouw";
+    if (gender === "other") return "Anders / liever niet zeggen";
+
+    return gender || "";
+}
+
 function selectedDayCount(registration) {
     const days = parseSelection(registration.selectedDays);
 
@@ -514,6 +522,7 @@ async function exportApprovedUsersCsv(req, res) {
             "Volledige naam",
             "E-mail",
             "Telefoon",
+            "Geslacht",
             "Shirtmaat",
             "Vervoer",
             "Aanwezigheidstype",
@@ -551,6 +560,7 @@ async function exportApprovedUsersCsv(req, res) {
             user.userName,
             user.userEmail,
             user.phone,
+            formatGender(user.gender),
             user.shirtSize,
             formatTransportOption(user.transportOption),
             formatAttendanceType(user),

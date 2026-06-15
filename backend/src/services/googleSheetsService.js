@@ -309,6 +309,14 @@ function formatTransportOption(option) {
     return option || "";
 }
 
+function formatGender(gender) {
+    if (gender === "male") return "Man";
+    if (gender === "female") return "Vrouw";
+    if (gender === "other") return "Anders / liever niet zeggen";
+
+    return gender || "";
+}
+
 function selectedDayCount(registration) {
     const days = parseSelection(registration.selectedDays);
 
@@ -411,6 +419,7 @@ function createSheetRows(registrations) {
         "Volledige naam",
         "E-mail",
         "Telefoon",
+        "Geslacht",
         "Shirtmaat",
         "Vervoer",
         "Aanwezigheidstype",
@@ -448,6 +457,7 @@ function createSheetRows(registrations) {
             registration.userName || "",
             registration.userEmail || "",
             registration.phone || "",
+            formatGender(registration.gender),
             registration.shirtSize || "",
             formatTransportOption(registration.transportOption),
             formatAttendanceType(registration),
@@ -503,12 +513,13 @@ function createWorkbookTabs(registrations) {
         {
             title: "Bus",
             rows: createSimpleRows(
-                ["Naam", "E-mail", "Telefoon", "Dagen", "Nachten", "Vrijdag-zaterdag", "Zaterdag-zondag", "Kerk", "Woonplaats", "Status"],
+                ["Naam", "E-mail", "Telefoon", "Geslacht", "Dagen", "Nachten", "Vrijdag-zaterdag", "Zaterdag-zondag", "Kerk", "Woonplaats", "Status"],
                 busRegistrations,
                 registration => [
                     registration.userName || "",
                     registration.userEmail || "",
                     registration.phone || "",
+                    formatGender(registration.gender),
                     formatSelectedDays(registration),
                     formatSelectedNights(registration),
                     hasSelectedNight(registration, 1),
@@ -522,12 +533,13 @@ function createWorkbookTabs(registrations) {
         {
             title: "Overnachting",
             rows: createSimpleRows(
-                ["Naam", "E-mail", "Telefoon", "Aanwezigheidstype", "Gekozen dagen", "Gekozen nachten", "Aantal nachten", "Vrijdag-zaterdag", "Zaterdag-zondag", "Status"],
+                ["Naam", "E-mail", "Telefoon", "Geslacht", "Aanwezigheidstype", "Gekozen dagen", "Gekozen nachten", "Aantal nachten", "Vrijdag-zaterdag", "Zaterdag-zondag", "Status"],
                 overnightRegistrations,
                 registration => [
                     registration.userName || "",
                     registration.userEmail || "",
                     registration.phone || "",
+                    formatGender(registration.gender),
                     formatAttendanceType(registration),
                     formatSelectedDays(registration),
                     formatSelectedNights(registration),
@@ -541,13 +553,14 @@ function createWorkbookTabs(registrations) {
         {
             title: "Shirtmaten",
             rows: createSimpleRows(
-                ["Shirtmaat", "Naam", "E-mail", "Telefoon", "Status"],
+                ["Shirtmaat", "Naam", "E-mail", "Telefoon", "Geslacht", "Status"],
                 shirtRegistrations.sort((a, b) => String(a.shirtSize || "").localeCompare(String(b.shirtSize || ""), "nl")),
                 registration => [
                     registration.shirtSize || "",
                     registration.userName || "",
                     registration.userEmail || "",
                     registration.phone || "",
+                    formatGender(registration.gender),
                     registration.registrationStatus || ""
                 ]
             )

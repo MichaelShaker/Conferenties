@@ -217,6 +217,17 @@ async function getMyRegistrations(userId) {
                 c.price
             ) AS fullEventPrice,
             c.price,
+            c.payment_link AS paymentLink,
+            c.payment_qr_url AS paymentQrUrl,
+            COALESCE(c.payment_link_1_day, c.payment_link) AS paymentLinkOneDay,
+            c.payment_link_2_days AS paymentLinkTwoDays,
+            c.payment_link_3_days AS paymentLinkThreeDays,
+            COALESCE(c.payment_qr_url_1_day, c.payment_qr_url) AS paymentQrUrlOneDay,
+            c.payment_qr_url_2_days AS paymentQrUrlTwoDays,
+            c.payment_qr_url_3_days AS paymentQrUrlThreeDays,
+            c.payment_contact_name AS paymentContactName,
+            c.payment_contact_phone AS paymentContactPhone,
+            c.payment_instructions AS paymentInstructions,
             c.registration_deadline AS registrationDeadline,
             c.image_url AS eventImage
         FROM registrations r
@@ -255,6 +266,7 @@ async function getAllRegistrations() {
             up.phone AS userPhone,
             up.first_name AS firstName,
             up.last_name AS lastName,
+            up.gender AS userGender,
             up.city AS profileCity,
             up.rank_title AS rankTitle,
             ch.name AS churchName,
