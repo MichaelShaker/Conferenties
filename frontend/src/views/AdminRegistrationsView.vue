@@ -254,7 +254,7 @@
             <input
                 v-model.trim="registrationFilters.search"
                 type="search"
-                placeholder="Naam, e-mail of telefoon"
+                placeholder="Naam of telefoon"
             />
           </label>
 
@@ -765,19 +765,10 @@ const filteredRegistrations = computed(() => {
 
   return tabFilteredRegistrations.value.filter(registration => {
     if (searchTerm) {
-      const searchable = [
-        registration.userName,
-        registration.userEmail,
-        registration.userPhone,
-        registration.eventTitle,
-        registration.churchName,
-        genderText(registration.userGender)
-      ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
+      const nameMatches = String(registration.userName || '').toLowerCase().includes(searchTerm)
+      const phoneMatches = phoneSearchMatches(registration.userPhone, searchTerm)
 
-      if (!searchable.includes(searchTerm)) return false
+      if (!nameMatches && !phoneMatches) return false
     }
 
     if (eventId && String(registration.eventId) !== eventId) {
@@ -1174,6 +1165,27 @@ function genderText(gender) {
   if (gender === 'other') return 'Anders / liever niet zeggen'
 
   return '-'
+}
+
+function normalizePhoneSearchTerm(value) {
+  return String(value || '').replace(/\D/g, '')
+}
+
+function phoneSearchMatches(phone, searchTerm) {
+  const normalizedSearchTerm = normalizePhoneSearchTerm(searchTerm)
+
+  if (!normalizedSearchTerm) {
+    return false
+  }
+
+  const normalizedPhone = normalizePhoneSearchTerm(phone)
+  const phoneCandidates = [normalizedPhone]
+
+  if (normalizedPhone.startsWith('31')) {
+    phoneCandidates.push(`0${normalizedPhone.slice(2)}`)
+  }
+
+  return phoneCandidates.some(candidate => candidate.includes(normalizedSearchTerm))
 }
 
 function clearRegistrationFilters() {
