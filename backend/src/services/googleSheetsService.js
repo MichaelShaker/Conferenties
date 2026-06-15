@@ -8,6 +8,76 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
 const GOOGLE_SHEETS_URL = "https://sheets.googleapis.com/v4/spreadsheets";
+const MANAGED_WORKBOOK_TITLES = [
+    "Alle registraties",
+    "Op locatie",
+    "Bus",
+    "Overnachting",
+    "Shirtmaten"
+];
+const DEFAULT_GRID_ROW_COUNT = 1000;
+const HEADER_ROW_HEIGHT_PX = 34;
+const BODY_ROW_HEIGHT_PX = 28;
+const SHEET_THEME = {
+    header: { red: 0.21, green: 0.36, blue: 0.28 },
+    headerText: { red: 1, green: 1, blue: 1 },
+    text: { red: 0.16, green: 0.18, blue: 0.2 },
+    border: { red: 0.86, green: 0.89, blue: 0.87 },
+    firstBand: { red: 0.98, green: 0.99, blue: 0.98 },
+    secondBand: { red: 0.94, green: 0.96, blue: 0.95 }
+};
+const COLUMN_WIDTHS_BY_HEADER = {
+    "Registratie ID": 100,
+    "Voornaam": 130,
+    "Achternaam": 160,
+    "Volledige naam": 190,
+    "Naam": 190,
+    "E-mail": 260,
+    "Telefoon": 150,
+    "Geslacht": 115,
+    "Shirtmaat": 100,
+    "Vervoer": 250,
+    "Aanwezigheidstype": 160,
+    "Dagen": 190,
+    "Nachten": 220,
+    "Gekozen dagen": 190,
+    "Gekozen nachten": 220,
+    "Aantal dagen": 115,
+    "Aantal nachten": 125,
+    "Nacht vrijdag-zaterdag": 155,
+    "Nacht zaterdag-zondag": 160,
+    "Vrijdag-zaterdag": 145,
+    "Zaterdag-zondag": 150,
+    "Prijs": 90,
+    "Geboortedatum": 130,
+    "Kerk": 190,
+    "Kerk stad": 140,
+    "Woonplaats": 150,
+    "Rang/functie": 155,
+    "Biechtvader": 165,
+    "Allergieën": 220,
+    "Dieet/notities": 240,
+    "Event": 230,
+    "Event datum": 130,
+    "Event locatie": 190,
+    "Betaalstatus": 135,
+    "Registratiestatus": 150,
+    "Status": 145,
+    "Op locatie lijst": 135,
+    "Betaalbewijs ontvangen": 175,
+    "Ingeschreven op": 145
+};
+const VALIDATION_OPTIONS_BY_HEADER = {
+    "Geslacht": ["Man", "Vrouw", "Anders / liever niet zeggen"],
+    "Shirtmaat": ["XS", "S", "M", "L", "XL", "XXL"],
+    "Vervoer": ["Eigen vervoer", "Bus tegen aanvullende kosten"],
+    "Aanwezigheidstype": ["Hele weekend", "1 nacht", "2 nachten", "1 dag", "2 dagen", "3 dagen", "Niet ingevuld"],
+    "Nacht vrijdag-zaterdag": ["Ja", "Nee"],
+    "Nacht zaterdag-zondag": ["Ja", "Nee"],
+    "Vrijdag-zaterdag": ["Ja", "Nee"],
+    "Zaterdag-zondag": ["Ja", "Nee"],
+    "Op locatie lijst": ["Ja", "Nee"]
+};
 
 const GOOGLE_SCOPES = [
     "openid",
@@ -597,12 +667,9 @@ async function createSpreadsheet(accessToken, conference) {
             properties: {
                 title: `Deelnemers - ${conference.title}`
             },
-            sheets: [
-                { properties: { title: "Alle registraties" } },
-                { properties: { title: "Op locatie" } },
-                { properties: { title: "Bus" } },
-                { properties: { title: "Shirtmaten" } }
-            ]
+            sheets: MANAGED_WORKBOOK_TITLES.map(title => ({
+                properties: { title }
+            }))
         })
     });
 
@@ -627,7 +694,7 @@ async function createSpreadsheet(accessToken, conference) {
 
 async function getSheetProperties(accessToken, spreadsheetId) {
     const response = await fetch(
-        `${GOOGLE_SHEETS_URL}/${spreadsheetId}?fields=sheets.properties(sheetId,title)`,
+        `${GOOGLE_SHEETS_URL}/${spreadsheetId}?fields=sheets.properties(sheetId,title,index)`,
         {
             headers: {
                 Authorization: `Bearer ${accessToken}`
@@ -640,44 +707,96 @@ async function getSheetProperties(accessToken, spreadsheetId) {
     return result.sheets?.map(sheet => sheet.properties) || [];
 }
 
-async function ensureWorkbookTabs(accessToken, spreadsheetId, tabTitles) {
-    const existingSheets = await getSheetProperties(accessToken, spreadsheetId);
-    const existingTitles = new Set(existingSheets.map(sheet => sheet.title));
-    const missingTitles = tabTitles.filter(title => !existingTitles.has(title));
-
-    if (missingTitles.length > 0) {
-        const response = await fetch(`${GOOGLE_SHEETS_URL}/${spreadsheetId}:batchUpdate`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                requests: missingTitles.map(title => ({
-                    addSheet: {
-                        properties: { title }
-                    }
-                }))
-            })
-        });
-
-        await parseGoogleResponse(response, "Could not add Google Sheet tabs");
+async function batchUpdateSpreadsheet(accessToken, spreadsheetId, requests, fallbackMessage) {
+    if (!requests.length) {
+        return {};
     }
 
-    return getSheetProperties(accessToken, spreadsheetId);
-}
-
-async function clearSheet(accessToken, spreadsheetId, title) {
-    const response = await fetch(`${GOOGLE_SHEETS_URL}/${spreadsheetId}/values/${encodeURIComponent(createA1Range(title, "A:Z"))}:clear`, {
+    const response = await fetch(`${GOOGLE_SHEETS_URL}/${spreadsheetId}:batchUpdate`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({ requests })
     });
 
-    await parseGoogleResponse(response, "Could not clear Google Sheet");
+    return parseGoogleResponse(response, fallbackMessage);
+}
+
+function getGridColumnCount(rows) {
+    return Math.max(1, rows[0]?.length || 1);
+}
+
+function getGridRowCount(rows) {
+    return Math.max(DEFAULT_GRID_ROW_COUNT, rows.length + 25);
+}
+
+function createInitialSheetProperties(tab, index) {
+    return {
+        title: tab.title,
+        index,
+        gridProperties: {
+            rowCount: getGridRowCount(tab.rows),
+            columnCount: getGridColumnCount(tab.rows),
+            frozenRowCount: 1
+        }
+    };
+}
+
+async function rebuildWorkbookTabs(accessToken, spreadsheetId, tabs) {
+    let existingSheets = await getSheetProperties(accessToken, spreadsheetId);
+    const managedTitles = new Set(tabs.map(tab => tab.title));
+    const sheetHasOnlyManagedTabs = existingSheets.length > 0
+        && existingSheets.every(sheet => managedTitles.has(sheet.title));
+    let temporarySheetId = null;
+
+    if (sheetHasOnlyManagedTabs) {
+        const temporaryTitle = `__sync_reset_${Date.now()}`;
+        const result = await batchUpdateSpreadsheet(
+            accessToken,
+            spreadsheetId,
+            [{ addSheet: { properties: { title: temporaryTitle } } }],
+            "Could not prepare Google Sheet reset"
+        );
+
+        temporarySheetId = result.replies?.[0]?.addSheet?.properties?.sheetId || null;
+
+        if (!temporarySheetId) {
+            existingSheets = await getSheetProperties(accessToken, spreadsheetId);
+            temporarySheetId = existingSheets.find(sheet => sheet.title === temporaryTitle)?.sheetId || null;
+        }
+    }
+
+    const freshSheets = await getSheetProperties(accessToken, spreadsheetId);
+    const deleteManagedTabRequests = freshSheets
+        .filter(sheet => managedTitles.has(sheet.title))
+        .map(sheet => ({
+            deleteSheet: {
+                sheetId: sheet.sheetId
+            }
+        }));
+    const addManagedTabRequests = tabs.map((tab, index) => ({
+        addSheet: {
+            properties: createInitialSheetProperties(tab, index)
+        }
+    }));
+    const cleanupRequests = temporarySheetId
+        ? [{ deleteSheet: { sheetId: temporarySheetId } }]
+        : [];
+
+    await batchUpdateSpreadsheet(
+        accessToken,
+        spreadsheetId,
+        [
+            ...deleteManagedTabRequests,
+            ...addManagedTabRequests,
+            ...cleanupRequests
+        ],
+        "Could not rebuild Google Sheet tabs"
+    );
+
+    return getSheetProperties(accessToken, spreadsheetId);
 }
 
 async function updateSheetValues(accessToken, spreadsheetId, title, rows) {
@@ -698,58 +817,288 @@ async function updateSheetValues(accessToken, spreadsheetId, title, rows) {
     await parseGoogleResponse(response, "Could not update Google Sheet");
 }
 
-async function formatSheet(accessToken, spreadsheetId, sheetId, columnCount = 24) {
-    const response = await fetch(`${GOOGLE_SHEETS_URL}/${spreadsheetId}:batchUpdate`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            requests: [
-                {
-                    repeatCell: {
+function getColumnWidth(header) {
+    if (COLUMN_WIDTHS_BY_HEADER[header]) {
+        return COLUMN_WIDTHS_BY_HEADER[header];
+    }
+
+    return Math.min(220, Math.max(95, String(header || "").length * 9 + 32));
+}
+
+function createColumnWidthRequests(sheetId, headers) {
+    return headers.map((header, index) => ({
+        updateDimensionProperties: {
+            range: {
+                sheetId,
+                dimension: "COLUMNS",
+                startIndex: index,
+                endIndex: index + 1
+            },
+            properties: {
+                pixelSize: getColumnWidth(header)
+            },
+            fields: "pixelSize"
+        }
+    }));
+}
+
+function createColumnFormatRequests(sheetId, headers, targetHeaders, userEnteredFormat) {
+    return headers
+        .map((header, index) => ({ header, index }))
+        .filter(({ header }) => targetHeaders.includes(header))
+        .map(({ index }) => ({
+            repeatCell: {
+                range: {
+                    sheetId,
+                    startRowIndex: 1,
+                    startColumnIndex: index,
+                    endColumnIndex: index + 1
+                },
+                cell: {
+                    userEnteredFormat
+                },
+                fields: "userEnteredFormat.horizontalAlignment"
+            }
+        }));
+}
+
+function createValidationRequests(sheetId, headers) {
+    return headers
+        .map((header, index) => ({
+            index,
+            options: VALIDATION_OPTIONS_BY_HEADER[header]
+        }))
+        .filter(({ options }) => options)
+        .map(({ index, options }) => ({
+            repeatCell: {
+                range: {
+                    sheetId,
+                    startRowIndex: 1,
+                    startColumnIndex: index,
+                    endColumnIndex: index + 1
+                },
+                cell: {
+                    dataValidation: {
+                        condition: {
+                            type: "ONE_OF_LIST",
+                            values: options.map(option => ({
+                                userEnteredValue: option
+                            }))
+                        },
+                        strict: false,
+                        showCustomUi: true
+                    }
+                },
+                fields: "dataValidation"
+            }
+        }));
+}
+
+async function formatSheet(accessToken, spreadsheetId, sheetId, rows) {
+    const headers = rows[0] || [];
+    const columnCount = getGridColumnCount(rows);
+    const gridRowCount = getGridRowCount(rows);
+    const dataRowCount = Math.max(rows.length, 2);
+    const centerAlignedHeaders = [
+        "Geslacht",
+        "Shirtmaat",
+        "Aanwezigheidstype",
+        "Nacht vrijdag-zaterdag",
+        "Nacht zaterdag-zondag",
+        "Vrijdag-zaterdag",
+        "Zaterdag-zondag",
+        "Op locatie lijst"
+    ];
+    const rightAlignedHeaders = [
+        "Registratie ID",
+        "Aantal dagen",
+        "Aantal nachten",
+        "Prijs"
+    ];
+
+    await batchUpdateSpreadsheet(
+        accessToken,
+        spreadsheetId,
+        [
+            {
+                updateSheetProperties: {
+                    properties: {
+                        sheetId,
+                        gridProperties: {
+                            frozenRowCount: 1,
+                            rowCount: gridRowCount,
+                            columnCount
+                        }
+                    },
+                    fields: "gridProperties.frozenRowCount,gridProperties.rowCount,gridProperties.columnCount"
+                }
+            },
+            {
+                repeatCell: {
+                    range: {
+                        sheetId,
+                        startRowIndex: 0,
+                        endRowIndex: gridRowCount,
+                        startColumnIndex: 0,
+                        endColumnIndex: columnCount
+                    },
+                    cell: {
+                        userEnteredFormat: {
+                            textFormat: {
+                                fontFamily: "Arial",
+                                fontSize: 10,
+                                foregroundColor: SHEET_THEME.text
+                            },
+                            verticalAlignment: "MIDDLE",
+                            wrapStrategy: "CLIP"
+                        }
+                    },
+                    fields: "userEnteredFormat.textFormat,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy"
+                }
+            },
+            {
+                repeatCell: {
+                    range: {
+                        sheetId,
+                        startRowIndex: 0,
+                        endRowIndex: 1,
+                        startColumnIndex: 0,
+                        endColumnIndex: columnCount
+                    },
+                    cell: {
+                        userEnteredFormat: {
+                            backgroundColor: SHEET_THEME.header,
+                            horizontalAlignment: "CENTER",
+                            verticalAlignment: "MIDDLE",
+                            wrapStrategy: "CLIP",
+                            textFormat: {
+                                bold: true,
+                                fontFamily: "Arial",
+                                fontSize: 10,
+                                foregroundColor: SHEET_THEME.headerText
+                            }
+                        }
+                    },
+                    fields: "userEnteredFormat.backgroundColor,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.textFormat"
+                }
+            },
+            {
+                updateDimensionProperties: {
+                    range: {
+                        sheetId,
+                        dimension: "ROWS",
+                        startIndex: 0,
+                        endIndex: 1
+                    },
+                    properties: {
+                        pixelSize: HEADER_ROW_HEIGHT_PX
+                    },
+                    fields: "pixelSize"
+                }
+            },
+            {
+                updateDimensionProperties: {
+                    range: {
+                        sheetId,
+                        dimension: "ROWS",
+                        startIndex: 1,
+                        endIndex: gridRowCount
+                    },
+                    properties: {
+                        pixelSize: BODY_ROW_HEIGHT_PX
+                    },
+                    fields: "pixelSize"
+                }
+            },
+            {
+                addBanding: {
+                    bandedRange: {
                         range: {
                             sheetId,
                             startRowIndex: 0,
-                            endRowIndex: 1
+                            endRowIndex: dataRowCount,
+                            startColumnIndex: 0,
+                            endColumnIndex: columnCount
                         },
-                        cell: {
-                            userEnteredFormat: {
-                                textFormat: {
-                                    bold: true
-                                }
-                            }
-                        },
-                        fields: "userEnteredFormat.textFormat.bold"
-                    }
-                },
-                {
-                    updateSheetProperties: {
-                        properties: {
-                            sheetId,
-                            gridProperties: {
-                                frozenRowCount: 1
-                            }
-                        },
-                        fields: "gridProperties.frozenRowCount"
-                    }
-                },
-                {
-                    autoResizeDimensions: {
-                        dimensions: {
-                            sheetId,
-                            dimension: "COLUMNS",
-                            startIndex: 0,
-                            endIndex: columnCount
+                        rowProperties: {
+                            headerColor: SHEET_THEME.header,
+                            firstBandColor: SHEET_THEME.firstBand,
+                            secondBandColor: SHEET_THEME.secondBand
                         }
                     }
                 }
-            ]
-        })
-    });
-
-    await parseGoogleResponse(response, "Could not format Google Sheet");
+            },
+            {
+                setBasicFilter: {
+                    filter: {
+                        range: {
+                            sheetId,
+                            startRowIndex: 0,
+                            endRowIndex: dataRowCount,
+                            startColumnIndex: 0,
+                            endColumnIndex: columnCount
+                        }
+                    }
+                }
+            },
+            {
+                updateBorders: {
+                    range: {
+                        sheetId,
+                        startRowIndex: 0,
+                        endRowIndex: dataRowCount,
+                        startColumnIndex: 0,
+                        endColumnIndex: columnCount
+                    },
+                    top: {
+                        style: "SOLID",
+                        width: 1,
+                        color: SHEET_THEME.border
+                    },
+                    bottom: {
+                        style: "SOLID",
+                        width: 1,
+                        color: SHEET_THEME.border
+                    },
+                    left: {
+                        style: "SOLID",
+                        width: 1,
+                        color: SHEET_THEME.border
+                    },
+                    right: {
+                        style: "SOLID",
+                        width: 1,
+                        color: SHEET_THEME.border
+                    },
+                    innerHorizontal: {
+                        style: "SOLID",
+                        width: 1,
+                        color: SHEET_THEME.border
+                    },
+                    innerVertical: {
+                        style: "SOLID",
+                        width: 1,
+                        color: SHEET_THEME.border
+                    }
+                }
+            },
+            ...createColumnWidthRequests(sheetId, headers),
+            ...createColumnFormatRequests(
+                sheetId,
+                headers,
+                centerAlignedHeaders,
+                { horizontalAlignment: "CENTER" }
+            ),
+            ...createColumnFormatRequests(
+                sheetId,
+                headers,
+                rightAlignedHeaders,
+                { horizontalAlignment: "RIGHT" }
+            ),
+            ...createValidationRequests(sheetId, headers)
+        ],
+        "Could not format Google Sheet"
+    );
 }
 
 async function markSheetSyncSuccess(conferenceId) {
@@ -820,17 +1169,16 @@ async function syncConferenceSheetCore(conferenceId) {
 
     const registrations = await conferenceService.getApprovedUsersForConference(conferenceId);
     const tabs = createWorkbookTabs(registrations);
-    const sheets = await ensureWorkbookTabs(accessToken, sheet.id, tabs.map(tab => tab.title));
+    const sheets = await rebuildWorkbookTabs(accessToken, sheet.id, tabs);
     const sheetsByTitle = new Map(sheets.map(sheetProperties => [sheetProperties.title, sheetProperties]));
 
     for (const tab of tabs) {
         const sheetProperties = sheetsByTitle.get(tab.title);
 
-        await clearSheet(accessToken, sheet.id, tab.title);
         await updateSheetValues(accessToken, sheet.id, tab.title, tab.rows);
 
         if (sheetProperties) {
-            await formatSheet(accessToken, sheet.id, sheetProperties.sheetId, tab.rows[0]?.length || 1);
+            await formatSheet(accessToken, sheet.id, sheetProperties.sheetId, tab.rows);
         }
     }
 

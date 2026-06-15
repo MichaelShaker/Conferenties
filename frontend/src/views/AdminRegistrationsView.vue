@@ -114,7 +114,7 @@
                   @click="syncGoogleSheet(event)"
                   :disabled="!googleStatus.connected || googleLoading"
               >
-                Sheet maken/bijwerken
+                Sheet opnieuw opbouwen
               </button>
 
               <a
@@ -992,8 +992,8 @@ async function syncAllSheets(options = {}) {
 
     success.value = result.failedCount === 0
     message.value = result.failedCount === 0
-        ? `${result.syncedCount} event-sheets automatisch bijgewerkt.`
-        : `${result.syncedCount} sheets bijgewerkt, ${result.failedCount} mislukt. Bekijk de foutmelding per event.`
+        ? `${result.syncedCount} event-sheets automatisch opnieuw opgebouwd.`
+        : `${result.syncedCount} sheets opnieuw opgebouwd, ${result.failedCount} mislukt. Bekijk de foutmelding per event.`
   } catch (error) {
     if (!options.quiet) {
       success.value = false
@@ -1012,7 +1012,7 @@ async function syncGoogleSheet(event) {
     const result = await syncGoogleSheetForEvent(event.eventId)
 
     success.value = true
-    message.value = `Google Sheet bijgewerkt met ${result.rowCount} registraties.`
+    message.value = `Google Sheet opnieuw opgebouwd met ${result.rowCount} registraties.`
 
     await loadRegistrations()
   } catch (error) {
