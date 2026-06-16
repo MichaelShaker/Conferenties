@@ -207,6 +207,172 @@ function buildCustomRegistrationEmail(registration, body) {
     `;
 }
 
+function parseSelection(value) {
+    if (!value) return [];
+
+    return String(value)
+        .split(",")
+        .map(item => Number(item.trim()))
+        .filter(Number.isInteger);
+}
+
+function isLegacyFullEventRegistration(registration) {
+    const days = parseSelection(registration?.selectedDays);
+    const maxDays = Number(registration?.maxEventDays || 1);
+    const selectedPrice = Number(registration?.selectedPrice || 0);
+    const fullEventPrice = Number(registration?.fullEventPrice || 0);
+
+    if (!registration?.selectedDays && maxDays > 1) return true;
+
+    return maxDays > 1
+        && days.length === 1
+        && days[0] === 1
+        && Number(registration?.selectedDayCount || 1) === 1
+        && fullEventPrice > 0
+        && selectedPrice >= fullEventPrice;
+}
+
+function selectedDayCount(registration) {
+    if (isLegacyFullEventRegistration(registration)) {
+        return Number(registration?.maxEventDays || registration?.selectedDayCount || 1);
+    }
+
+    if (!registration?.selectedDays) {
+        return Number(registration?.maxEventDays || registration?.selectedDayCount || 1);
+    }
+
+    if (registration.selectedDayCount) {
+        return Number(registration.selectedDayCount);
+    }
+
+    return parseSelection(registration.selectedDays).length;
+}
+
+function fullEventNights(registration) {
+    const maxDays = Math.min(3, Math.max(1, Number(registration?.maxEventDays || registration?.selectedDayCount || 1)));
+
+    return Array.from({ length: Math.max(0, maxDays - 1) }, (_, index) => index + 1);
+}
+
+function effectiveSelectedNights(registration) {
+    const nights = parseSelection(registration?.selectedNights);
+
+    if (nights.length) return nights;
+    if (isLegacyFullEventRegistration(registration) && selectedDayCount(registration) > 1) {
+        return fullEventNights(registration);
+    }
+
+    return [];
+}
+
+function isApprovedRegistration(registration) {
+    return registration.paymentStatus === "paid"
+        && ["confirmed", "approved", "goedgekeurd"].includes(registration.registrationStatus);
+}
+
+function isRejectedRegistration(registration) {
+    return registration.paymentStatus === "rejected"
+        || Boolean(registration.cancelledAt)
+        || ["rejected", "denied", "afgewezen", "cancelled", "canceled", "geannuleerd"].includes(registration.registrationStatus);
+}
+
+function isPendingRegistration(registration) {
+    return !isApprovedRegistration(registration) && !isRejectedRegistration(registration);
+}
+
+function normalizePhoneSearchTerm(value) {
+    return String(value || "").replace(/\D/g, "");
+}
+
+function phoneSearchMatches(phone, searchTerm) {
+    const normalizedSearchTerm = normalizePhoneSearchTerm(searchTerm);
+
+    if (!normalizedSearchTerm) {
+        return false;
+    }
+
+    const normalizedPhone = normalizePhoneSearchTerm(phone);
+    const phoneCandidates = [normalizedPhone];
+
+    if (normalizedPhone.startsWith("31")) {
+        phoneCandidates.push(`0${normalizedPhone.slice(2)}`);
+    }
+
+    return phoneCandidates.some(candidate => candidate.includes(normalizedSearchTerm));
+}
+
+function normalizeBulkEmailFilters(filters = {}) {
+    return {
+        tab: ["pending", "approved", "rejected", "all"].includes(filters.tab) ? filters.tab : "pending",
+        search: String(filters.search || "").trim().toLowerCase(),
+        eventId: filters.eventId ? String(filters.eventId) : "",
+        paymentStatus: ["", "not_paid", "pending", "proof_uploaded", "paid", "rejected"].includes(filters.paymentStatus)
+            ? filters.paymentStatus
+            : "",
+        transport: ["", "own_transport", "bus", "missing"].includes(filters.transport) ? filters.transport : "",
+        gender: ["", "male", "female", "other", "missing"].includes(filters.gender) ? filters.gender : "",
+        dayCount: ["", "1", "2", "3", "full"].includes(filters.dayCount) ? filters.dayCount : "",
+        nightFilter: ["", "none", "1_night", "2_nights", "night_1", "night_2"].includes(filters.nightFilter)
+            ? filters.nightFilter
+            : ""
+    };
+}
+
+function matchesBulkEmailFilters(registration, filters) {
+    if (filters.tab === "approved" && !isApprovedRegistration(registration)) return false;
+    if (filters.tab === "rejected" && !isRejectedRegistration(registration)) return false;
+    if (filters.tab === "pending" && !isPendingRegistration(registration)) return false;
+
+    if (filters.search) {
+        const nameMatches = String(registration.userName || "").toLowerCase().includes(filters.search);
+        const phoneMatches = phoneSearchMatches(registration.userPhone, filters.search);
+
+        if (!nameMatches && !phoneMatches) return false;
+    }
+
+    if (filters.eventId && String(registration.eventId) !== filters.eventId) return false;
+
+    if (filters.paymentStatus === "not_paid") {
+        if (!["pending", "proof_uploaded"].includes(registration.paymentStatus)) return false;
+    } else if (filters.paymentStatus && registration.paymentStatus !== filters.paymentStatus) {
+        return false;
+    }
+
+    if (filters.transport === "missing") {
+        if (registration.transportOption) return false;
+    } else if (filters.transport && registration.transportOption !== filters.transport) {
+        return false;
+    }
+
+    if (filters.gender === "missing") {
+        if (registration.userGender) return false;
+    } else if (filters.gender && registration.userGender !== filters.gender) {
+        return false;
+    }
+
+    if (filters.dayCount) {
+        const count = selectedDayCount(registration);
+
+        if (filters.dayCount === "full") {
+            if (count !== Number(registration.maxEventDays || count)) return false;
+        } else if (count !== Number(filters.dayCount)) {
+            return false;
+        }
+    }
+
+    if (filters.nightFilter) {
+        const nights = effectiveSelectedNights(registration);
+
+        if (filters.nightFilter === "none" && nights.length !== 0) return false;
+        if (filters.nightFilter === "1_night" && nights.length !== 1) return false;
+        if (filters.nightFilter === "2_nights" && nights.length !== 2) return false;
+        if (filters.nightFilter === "night_1" && !nights.includes(1)) return false;
+        if (filters.nightFilter === "night_2" && !nights.includes(2)) return false;
+    }
+
+    return true;
+}
+
 async function sendRegistrationStatusEmail({ registration, actorUserId, emailType }) {
     const { subject, html } = buildRegistrationStatusEmail(registration);
 
@@ -256,6 +422,56 @@ async function sendCustomRegistrationEmailInBackground({ registration, actorUser
                 errorMessage: error.message
             });
         }
+    });
+}
+
+function sendBulkRegistrationEmailInBackground({ registrations, actorUserId, subject, body, filters }) {
+    setImmediate(async () => {
+        let sentCount = 0;
+        let failedCount = 0;
+
+        for (const registration of registrations) {
+            try {
+                const html = buildCustomRegistrationEmail(registration, body);
+                await sendMail(registration.userEmail, subject, html);
+                sentCount += 1;
+                await logEmail({
+                    actorUserId,
+                    conferenceId: registration.eventId,
+                    registrationId: registration.id,
+                    emailType: "registration_bulk_custom",
+                    recipientEmail: registration.userEmail,
+                    subject,
+                    status: "sent"
+                });
+            } catch (error) {
+                failedCount += 1;
+                console.error("Error sending bulk registration email:", error.message);
+                await logEmail({
+                    actorUserId,
+                    conferenceId: registration.eventId,
+                    registrationId: registration.id,
+                    emailType: "registration_bulk_custom",
+                    recipientEmail: registration.userEmail,
+                    subject,
+                    status: "failed",
+                    errorMessage: error.message
+                });
+            }
+        }
+
+        await logAudit({
+            actorUserId,
+            action: "registration.bulk_email_sent",
+            entityType: "registration",
+            details: {
+                subject,
+                filters,
+                recipientCount: registrations.length,
+                sentCount,
+                failedCount
+            }
+        });
     });
 }
 
@@ -689,6 +905,60 @@ async function sendCustomRegistrationEmail(req, res) {
     }
 }
 
+async function sendBulkRegistrationEmail(req, res) {
+    try {
+        const { subject, body, filters } = req.body;
+
+        if (!subject || !body) {
+            return res.status(400).json({
+                success: false,
+                message: "Subject and message are required"
+            });
+        }
+
+        if (String(subject).length > 160 || String(body).length > 5000) {
+            return res.status(400).json({
+                success: false,
+                message: "Subject or message is too long"
+            });
+        }
+
+        const normalizedFilters = normalizeBulkEmailFilters(filters);
+        const registrations = (await registrationService.getAllRegistrations())
+            .filter(registration => registration.userEmail)
+            .filter(registration => matchesBulkEmailFilters(registration, normalizedFilters));
+
+        if (registrations.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No recipients match these filters"
+            });
+        }
+
+        sendBulkRegistrationEmailInBackground({
+            registrations,
+            actorUserId: req.user?.id,
+            subject: String(subject).trim(),
+            body: String(body).trim(),
+            filters: normalizedFilters
+        });
+
+        res.json({
+            success: true,
+            message: "Bulk registration email queued",
+            data: {
+                recipientCount: registrations.length
+            }
+        });
+    } catch (error) {
+        console.error("Error queueing bulk registration email:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not send bulk registration email"
+        });
+    }
+}
+
 module.exports = {
     registerForConference,
     getMyRegistrations,
@@ -698,5 +968,6 @@ module.exports = {
     uploadPaymentProof,
     cancelRegistration,
     resendRegistrationEmail,
-    sendCustomRegistrationEmail
+    sendCustomRegistrationEmail,
+    sendBulkRegistrationEmail
 };

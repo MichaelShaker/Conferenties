@@ -13,7 +13,8 @@ const {
     uploadPaymentProof,
     cancelRegistration,
     resendRegistrationEmail,
-    sendCustomRegistrationEmail
+    sendCustomRegistrationEmail,
+    sendBulkRegistrationEmail
 } = require("../controllers/registrationController");
 
 // user routes
@@ -23,6 +24,7 @@ router.put("/:id/cancel", authMiddleware, cancelRegistration);
 
 // admin routes
 router.get("/", authMiddleware, adminMiddleware, getAllRegistrations);
+router.post("/bulk-email", authMiddleware, adminMiddleware, sendBulkRegistrationEmail);
 router.get("/:id/payment-proof", authMiddleware, adminMiddleware, getRegistrationPaymentProof);
 router.put("/:id", authMiddleware, adminMiddleware, updateRegistration);
 router.post("/:id/resend-email", authMiddleware, adminMiddleware, resendRegistrationEmail);

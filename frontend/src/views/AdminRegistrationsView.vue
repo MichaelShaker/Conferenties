@@ -227,12 +227,22 @@
 
       <!-- TABLE -->
       <section class="registrations-panel">
-        <div class="panel-heading">
+        <div class="panel-heading registrations-heading">
           <div>
             <p class="eyebrow">Overzicht</p>
             <h2>{{ activeTabLabel }}</h2>
             <p>Werk vanuit de wachtrij en houd goedgekeurde deelnemers apart.</p>
           </div>
+          <button
+              type="button"
+              class="bulk-email-trigger"
+              title="Bulkmail"
+              aria-label="Bulkmail openen"
+              @click="openBulkEmailModal"
+          >
+            <span class="bulk-email-trigger-icon" aria-hidden="true">@</span>
+            <span>Bulkmail</span>
+          </button>
         </div>
 
         <div class="registration-tabs" role="tablist" aria-label="Registratie filters">
@@ -265,6 +275,18 @@
               <option v-for="event in eventSummaries" :key="event.id" :value="String(event.id)">
                 {{ event.title }}
               </option>
+            </select>
+          </label>
+
+          <label>
+            <span>Betaling</span>
+            <select v-model="registrationFilters.paymentStatus">
+              <option value="">Alle betalingen</option>
+              <option value="not_paid">Niet betaald</option>
+              <option value="pending">Wacht op betaling</option>
+              <option value="proof_uploaded">Bewijs geüpload</option>
+              <option value="paid">Betaald</option>
+              <option value="rejected">Afgewezen</option>
             </select>
           </label>
 
@@ -631,6 +653,137 @@
         </div>
       </section>
     </div>
+
+    <div v-if="bulkEmailModalOpen" class="modal-backdrop" @click.self="closeBulkEmailModal">
+      <section class="email-modal bulk-email-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-email-title">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">Bulkmail</p>
+            <h2 id="bulk-email-title">Mail selectie</h2>
+            <p>{{ bulkEmailRecipientPreviewCount }} ontvangers met e-mailadres</p>
+          </div>
+          <button type="button" class="icon-button" @click="closeBulkEmailModal" aria-label="Sluiten">x</button>
+        </div>
+
+        <div class="bulk-email-target">
+          <div class="bulk-email-target-heading">
+            <strong>Doelgroep</strong>
+            <span>{{ bulkEmailRecipientPreviewCount }} ontvangers</span>
+          </div>
+
+          <div class="bulk-email-filter-grid">
+            <label class="search-field">
+              <span>Zoeken</span>
+              <input
+                  v-model.trim="bulkEmailFilters.search"
+                  type="search"
+                  placeholder="Naam of telefoon"
+              />
+            </label>
+
+            <label>
+              <span>Lijst</span>
+              <select v-model="bulkEmailFilters.tab">
+                <option value="pending">Openstaand</option>
+                <option value="approved">Goedgekeurd</option>
+                <option value="rejected">Afgekeurd</option>
+                <option value="all">Alles</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Event</span>
+              <select v-model="bulkEmailFilters.eventId">
+                <option value="">Alle events</option>
+                <option v-for="event in eventSummaries" :key="event.id" :value="String(event.id)">
+                  {{ event.title }}
+                </option>
+              </select>
+            </label>
+
+            <label>
+              <span>Betaling</span>
+              <select v-model="bulkEmailFilters.paymentStatus">
+                <option value="">Alle betalingen</option>
+                <option value="not_paid">Niet betaald</option>
+                <option value="pending">Wacht op betaling</option>
+                <option value="proof_uploaded">Bewijs geüpload</option>
+                <option value="paid">Betaald</option>
+                <option value="rejected">Afgewezen</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Vervoer</span>
+              <select v-model="bulkEmailFilters.transport">
+                <option value="">Alle vervoer</option>
+                <option value="own_transport">Eigen vervoer</option>
+                <option value="bus">Bus</option>
+                <option value="missing">Niet ingevuld</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Geslacht</span>
+              <select v-model="bulkEmailFilters.gender">
+                <option value="">Alle geslachten</option>
+                <option value="male">Man</option>
+                <option value="female">Vrouw</option>
+                <option value="other">Anders / liever niet zeggen</option>
+                <option value="missing">Niet ingevuld</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Dagen</span>
+              <select v-model="bulkEmailFilters.dayCount">
+                <option value="">Alle dagen</option>
+                <option value="1">1 dag</option>
+                <option value="2">2 dagen</option>
+                <option value="3">3 dagen</option>
+                <option value="full">Volledig event</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Nachten</span>
+              <select v-model="bulkEmailFilters.nightFilter">
+                <option value="">Alle nachten</option>
+                <option value="none">Geen overnachting</option>
+                <option value="1_night">1 nacht</option>
+                <option value="2_nights">2 nachten</option>
+                <option value="night_1">Vrijdag op zaterdag</option>
+                <option value="night_2">Zaterdag op zondag</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <label class="modal-field">
+          <span>Onderwerp</span>
+          <input v-model="bulkEmail.subject" type="text" maxlength="160" />
+        </label>
+
+        <label class="modal-field">
+          <span>Bericht</span>
+          <textarea v-model="bulkEmail.body" rows="8" placeholder="Schrijf hier je bericht..." />
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-button" @click="closeBulkEmailModal">
+            Annuleren
+          </button>
+          <button
+              type="button"
+              class="approve-button"
+              @click="sendBulkEmail"
+              :disabled="bulkEmailSending || bulkEmailRecipientPreviewCount === 0 || !bulkEmail.subject.trim() || !bulkEmail.body.trim()"
+          >
+            {{ bulkEmailSending ? 'Versturen...' : `Mail ${bulkEmailRecipientPreviewCount} ontvangers` }}
+          </button>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -648,6 +801,7 @@ import {
   syncAllGoogleSheets,
   resendRegistrationEmail,
   sendCustomRegistrationEmail,
+  sendBulkRegistrationEmail,
   fetchAdminAuditLogs
 } from '../services/api'
 import { authState } from '../stores/auth'
@@ -663,6 +817,7 @@ const showApprovedLists = ref(false)
 const registrationFilters = ref({
   search: '',
   eventId: '',
+  paymentStatus: '',
   transport: '',
   gender: '',
   dayCount: '',
@@ -676,6 +831,13 @@ const googleStatus = ref({
 const emailModalRegistration = ref(null)
 const emailSending = ref(false)
 const customEmail = ref({
+  subject: '',
+  body: ''
+})
+const bulkEmailModalOpen = ref(false)
+const bulkEmailSending = ref(false)
+const bulkEmailFilters = ref(createDefaultBulkEmailFilters())
+const bulkEmail = ref({
   subject: '',
   body: ''
 })
@@ -736,19 +898,7 @@ const activeTabLabel = computed(() => {
 })
 
 const tabFilteredRegistrations = computed(() => {
-  if (activeRegistrationTab.value === 'approved') {
-    return registrations.value.filter(isApprovedRegistration)
-  }
-
-  if (activeRegistrationTab.value === 'rejected') {
-    return registrations.value.filter(isRejectedRegistration)
-  }
-
-  if (activeRegistrationTab.value === 'pending') {
-    return registrations.value.filter(isPendingRegistration)
-  }
-
-  return registrations.value
+  return registrations.value.filter(registration => matchesRegistrationTab(registration, activeRegistrationTab.value))
 })
 
 const hasActiveRegistrationFilters = computed(() => {
@@ -756,59 +906,17 @@ const hasActiveRegistrationFilters = computed(() => {
 })
 
 const filteredRegistrations = computed(() => {
-  const searchTerm = registrationFilters.value.search.trim().toLowerCase()
-  const eventId = registrationFilters.value.eventId
-  const transport = registrationFilters.value.transport
-  const gender = registrationFilters.value.gender
-  const dayCount = registrationFilters.value.dayCount
-  const nightFilter = registrationFilters.value.nightFilter
+  return tabFilteredRegistrations.value.filter(registration => matchesRegistrationFilters(registration, registrationFilters.value))
+})
 
-  return tabFilteredRegistrations.value.filter(registration => {
-    if (searchTerm) {
-      const nameMatches = String(registration.userName || '').toLowerCase().includes(searchTerm)
-      const phoneMatches = phoneSearchMatches(registration.userPhone, searchTerm)
+const bulkEmailFilteredRegistrations = computed(() => {
+  return registrations.value
+      .filter(registration => matchesRegistrationTab(registration, bulkEmailFilters.value.tab))
+      .filter(registration => matchesRegistrationFilters(registration, bulkEmailFilters.value))
+})
 
-      if (!nameMatches && !phoneMatches) return false
-    }
-
-    if (eventId && String(registration.eventId) !== eventId) {
-      return false
-    }
-
-    if (transport === 'missing') {
-      if (registration.transportOption) return false
-    } else if (transport && registration.transportOption !== transport) {
-      return false
-    }
-
-    if (gender === 'missing') {
-      if (registration.userGender) return false
-    } else if (gender && registration.userGender !== gender) {
-      return false
-    }
-
-    if (dayCount) {
-      const count = selectedDayCount(registration)
-
-      if (dayCount === 'full') {
-        if (count !== Number(registration.maxEventDays || count)) return false
-      } else if (count !== Number(dayCount)) {
-        return false
-      }
-    }
-
-    if (nightFilter) {
-      const nights = effectiveSelectedNights(registration)
-
-      if (nightFilter === 'none' && nights.length !== 0) return false
-      if (nightFilter === '1_night' && nights.length !== 1) return false
-      if (nightFilter === '2_nights' && nights.length !== 2) return false
-      if (nightFilter === 'night_1' && !nights.includes(1)) return false
-      if (nightFilter === 'night_2' && !nights.includes(2)) return false
-    }
-
-    return true
-  })
+const bulkEmailRecipientPreviewCount = computed(() => {
+  return bulkEmailFilteredRegistrations.value.filter(registration => registration.userEmail).length
 })
 
 const eventSummaries = computed(() => {
@@ -939,12 +1047,18 @@ function auditActionText(log) {
   }
   if (log.action === 'registration.custom_email_sent') return 'Persoonlijke mail gestuurd'
   if (log.action === 'registration.email_resent') return 'Statusmail opnieuw gestuurd'
+  if (log.action === 'registration.bulk_email_sent') return 'Bulkmail gestuurd'
 
   return 'Registratie aangepast'
 }
 
 function auditSubjectText(log) {
   const details = auditDetails(log)
+
+  if (log.action === 'registration.bulk_email_sent') {
+    return `${details.recipientCount || 0} ontvangers`
+  }
+
   const name = details.userName || details.userEmail || `Registratie #${log.entityId || '-'}`
   const event = details.eventTitle ? ` · ${details.eventTitle}` : ''
 
@@ -1188,10 +1302,91 @@ function phoneSearchMatches(phone, searchTerm) {
   return phoneCandidates.some(candidate => candidate.includes(normalizedSearchTerm))
 }
 
+function createDefaultBulkEmailFilters() {
+  return {
+    tab: activeRegistrationTab.value,
+    search: '',
+    eventId: '',
+    paymentStatus: '',
+    transport: '',
+    gender: '',
+    dayCount: '',
+    nightFilter: ''
+  }
+}
+
+function matchesRegistrationTab(registration, tab) {
+  if (tab === 'approved') return isApprovedRegistration(registration)
+  if (tab === 'rejected') return isRejectedRegistration(registration)
+  if (tab === 'pending') return isPendingRegistration(registration)
+
+  return true
+}
+
+function matchesRegistrationFilters(registration, filters) {
+  const searchTerm = String(filters.search || '').trim().toLowerCase()
+  const eventId = filters.eventId || ''
+  const paymentStatus = filters.paymentStatus || ''
+  const transport = filters.transport || ''
+  const gender = filters.gender || ''
+  const dayCount = filters.dayCount || ''
+  const nightFilter = filters.nightFilter || ''
+
+  if (searchTerm) {
+    const nameMatches = String(registration.userName || '').toLowerCase().includes(searchTerm)
+    const phoneMatches = phoneSearchMatches(registration.userPhone, searchTerm)
+
+    if (!nameMatches && !phoneMatches) return false
+  }
+
+  if (eventId && String(registration.eventId) !== eventId) return false
+
+  if (paymentStatus === 'not_paid') {
+    if (!['pending', 'proof_uploaded'].includes(registration.paymentStatus)) return false
+  } else if (paymentStatus && registration.paymentStatus !== paymentStatus) {
+    return false
+  }
+
+  if (transport === 'missing') {
+    if (registration.transportOption) return false
+  } else if (transport && registration.transportOption !== transport) {
+    return false
+  }
+
+  if (gender === 'missing') {
+    if (registration.userGender) return false
+  } else if (gender && registration.userGender !== gender) {
+    return false
+  }
+
+  if (dayCount) {
+    const count = selectedDayCount(registration)
+
+    if (dayCount === 'full') {
+      if (count !== Number(registration.maxEventDays || count)) return false
+    } else if (count !== Number(dayCount)) {
+      return false
+    }
+  }
+
+  if (nightFilter) {
+    const nights = effectiveSelectedNights(registration)
+
+    if (nightFilter === 'none' && nights.length !== 0) return false
+    if (nightFilter === '1_night' && nights.length !== 1) return false
+    if (nightFilter === '2_nights' && nights.length !== 2) return false
+    if (nightFilter === 'night_1' && !nights.includes(1)) return false
+    if (nightFilter === 'night_2' && !nights.includes(2)) return false
+  }
+
+  return true
+}
+
 function clearRegistrationFilters() {
   registrationFilters.value = {
     search: '',
     eventId: '',
+    paymentStatus: '',
     transport: '',
     gender: '',
     dayCount: '',
@@ -1393,6 +1588,37 @@ function closeCustomEmailModal() {
   }
 }
 
+function currentBulkEmailFilters() {
+  return {
+    tab: activeRegistrationTab.value,
+    search: registrationFilters.value.search,
+    eventId: registrationFilters.value.eventId,
+    paymentStatus: registrationFilters.value.paymentStatus,
+    transport: registrationFilters.value.transport,
+    gender: registrationFilters.value.gender,
+    dayCount: registrationFilters.value.dayCount,
+    nightFilter: registrationFilters.value.nightFilter
+  }
+}
+
+function openBulkEmailModal() {
+  bulkEmailFilters.value = currentBulkEmailFilters()
+  bulkEmail.value = {
+    subject: '',
+    body: ''
+  }
+  bulkEmailModalOpen.value = true
+}
+
+function closeBulkEmailModal() {
+  bulkEmailModalOpen.value = false
+  bulkEmailFilters.value = createDefaultBulkEmailFilters()
+  bulkEmail.value = {
+    subject: '',
+    body: ''
+  }
+}
+
 async function sendCustomEmail() {
   if (!emailModalRegistration.value) return
 
@@ -1412,6 +1638,29 @@ async function sendCustomEmail() {
     message.value = error.message
   } finally {
     emailSending.value = false
+  }
+}
+
+async function sendBulkEmail() {
+  if (bulkEmailRecipientPreviewCount.value === 0) return
+
+  bulkEmailSending.value = true
+
+  try {
+    const result = await sendBulkRegistrationEmail({
+      subject: bulkEmail.value.subject.trim(),
+      body: bulkEmail.value.body.trim(),
+      filters: bulkEmailFilters.value
+    })
+
+    success.value = true
+    message.value = `Bulkmail wordt verstuurd naar ${result.recipientCount} ontvangers.`
+    closeBulkEmailModal()
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  } finally {
+    bulkEmailSending.value = false
   }
 }
 
@@ -1708,6 +1957,42 @@ async function exportCsvForEvent(registration) {
   color: #64748b;
 }
 
+.registrations-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.bulk-email-trigger {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 900;
+}
+
+.bulk-email-trigger:hover {
+  background: #dbeafe;
+}
+
+.bulk-email-trigger-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
 .registration-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1753,7 +2038,7 @@ async function exportCsvForEvent(registration) {
 
 .registration-filterbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(140px, 1fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   align-items: end;
   margin-bottom: 12px;
@@ -1761,6 +2046,10 @@ async function exportCsvForEvent(registration) {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #f8fafc;
+}
+
+.registration-filterbar .search-field {
+  grid-column: span 2;
 }
 
 .registration-filterbar label {
@@ -2374,6 +2663,79 @@ td strong {
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
 }
 
+.bulk-email-modal {
+  width: min(820px, 100%);
+}
+
+.bulk-email-target {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.bulk-email-target-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.bulk-email-target-heading strong {
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.bulk-email-target-heading span {
+  color: #1d4ed8;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.bulk-email-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bulk-email-filter-grid .search-field {
+  grid-column: span 2;
+}
+
+.bulk-email-filter-grid label {
+  display: grid;
+  gap: 7px;
+}
+
+.bulk-email-filter-grid label span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.bulk-email-filter-grid input,
+.bulk-email-filter-grid select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 800;
+}
+
+.bulk-email-filter-grid input:focus,
+.bulk-email-filter-grid select:focus {
+  outline: 3px solid rgba(37, 99, 235, 0.16);
+  border-color: #2563eb;
+}
+
 .modal-heading {
   display: flex;
   justify-content: space-between;
@@ -2583,6 +2945,19 @@ td strong {
   .registration-filterbar select,
   .clear-filters-button {
     min-height: 48px;
+  }
+
+  .registrations-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bulk-email-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-email-filter-grid .search-field {
+    grid-column: auto;
   }
 
   .registrations-panel .table-wrapper {

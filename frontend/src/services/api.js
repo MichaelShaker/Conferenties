@@ -181,6 +181,17 @@ export async function sendCustomRegistrationEmail(id, payload) {
     return handleResponse(response);
 }
 
+export async function sendBulkRegistrationEmail(payload) {
+    const response = await fetch(`${API_BASE_URL}/registrations/bulk-email`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+    });
+
+    const result = await handleResponse(response);
+    return result.data;
+}
+
 export async function cancelRegistration(id) {
     const response = await fetch(`${API_BASE_URL}/registrations/${id}/cancel`, {
         method: "PUT",
