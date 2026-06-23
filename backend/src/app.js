@@ -12,6 +12,8 @@ const passwordResetRoutes = require("./routes/passwordResetRoutes");
 const khelwaRoutes = require('./routes/khelwa/khelwaRoutes');
 const googleRoutes = require("./routes/googleRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const maintenanceRoutes = require("./routes/maintenanceRoutes");
+const maintenanceMiddleware = require("./middleware/maintenanceMiddleware");
 
 const app = express();
 
@@ -52,6 +54,9 @@ app.get("/api/health", (req, res) => {
         message: "Backend is running"
     });
 });
+
+app.use("/api/maintenance", maintenanceRoutes);
+app.use(maintenanceMiddleware);
 
 app.use('/api/khelwa', khelwaRoutes);
 app.use("/api/auth", authRateLimiter, authRoutes);

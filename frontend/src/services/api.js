@@ -297,6 +297,35 @@ export async function fetchAdminStatus() {
     return result.data;
 }
 
+export async function fetchMaintenanceSettings() {
+    const response = await fetch(`${API_BASE_URL}/maintenance`, {
+        headers: getAuthHeaders()
+    });
+
+    const result = await handleResponse(response);
+    return result.data;
+}
+
+export async function fetchAdminMaintenanceSettings() {
+    const response = await fetch(`${API_BASE_URL}/admin/maintenance`, {
+        headers: getAuthHeaders()
+    });
+
+    const result = await handleResponse(response);
+    return result.data;
+}
+
+export async function updateAdminMaintenanceSettings(payload) {
+    const response = await fetch(`${API_BASE_URL}/admin/maintenance`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+    });
+
+    const result = await handleResponse(response);
+    return result.data;
+}
+
 export async function deleteConference(id) {
     const response = await fetch(`${API_BASE_URL}/conferences/${id}`, {
         method: "DELETE",

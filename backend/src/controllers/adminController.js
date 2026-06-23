@@ -1,4 +1,5 @@
 const adminService = require("../services/adminService");
+const maintenanceService = require("../services/maintenanceService");
 const { logAudit } = require("../services/auditService");
 
 async function getAuditLogs(req, res) {
@@ -114,10 +115,60 @@ async function getSystemStatus(req, res) {
     }
 }
 
+async function getMaintenanceSettings(req, res) {
+    try {
+        const settings = await maintenanceService.getMaintenanceSettings();
+
+        res.json({
+            success: true,
+            data: settings
+        });
+    } catch (error) {
+        console.error("Maintenance settings error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not fetch maintenance settings"
+        });
+    }
+}
+
+async function updateMaintenanceSettings(req, res) {
+    try {
+        const settings = await maintenanceService.updateMaintenanceSettings(req.body);
+
+        await logAudit({
+            actorUserId: req.user.id,
+            action: "maintenance.updated",
+            entityType: "app_settings",
+            entityId: null,
+            details: {
+                enabled: settings.enabled,
+                title: settings.title,
+                expectedBackAt: settings.expectedBackAt,
+                contactEmail: settings.contactEmail
+            }
+        });
+
+        res.json({
+            success: true,
+            message: "Maintenance settings updated",
+            data: settings
+        });
+    } catch (error) {
+        console.error("Update maintenance settings error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Could not update maintenance settings"
+        });
+    }
+}
+
 module.exports = {
     getAuditLogs,
     getEmailLogs,
     getUsers,
     updateUser,
-    getSystemStatus
+    getSystemStatus,
+    getMaintenanceSettings,
+    updateMaintenanceSettings
 };

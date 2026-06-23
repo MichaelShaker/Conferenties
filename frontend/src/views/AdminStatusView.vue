@@ -42,17 +42,72 @@
       <p>Laatste Google Sheet sync: {{ formatDate(status.metrics.lastSheetSyncAt) }}</p>
       <p>Omgeving: {{ status.app.environment }}</p>
     </section>
+
+    <section class="maintenance-panel">
+      <div class="maintenance-panel__head">
+        <div>
+          <p class="eyebrow">Website</p>
+          <h2>Onderhoudsmodus</h2>
+          <p>Zet de publieke website tijdelijk dicht en pas de melding aan die bezoekers zien.</p>
+        </div>
+
+        <label class="switch">
+          <input v-model="maintenanceForm.enabled" type="checkbox" />
+          <span>{{ maintenanceForm.enabled ? 'Actief' : 'Uit' }}</span>
+        </label>
+      </div>
+
+      <form class="maintenance-form" @submit.prevent="saveMaintenanceSettings">
+        <label>
+          Titel
+          <input v-model="maintenanceForm.title" type="text" maxlength="120" />
+        </label>
+
+        <label>
+          Bericht
+          <textarea v-model="maintenanceForm.message" maxlength="800"></textarea>
+        </label>
+
+        <div class="maintenance-form__grid">
+          <label>
+            Verwacht terug
+            <input v-model="maintenanceForm.expectedBackAt" type="text" maxlength="120" placeholder="Bijv. vandaag rond 20:00" />
+          </label>
+
+          <label>
+            Contact email
+            <input v-model="maintenanceForm.contactEmail" type="email" maxlength="180" placeholder="naam@example.com" />
+          </label>
+        </div>
+
+        <button type="submit" class="save-button" :disabled="savingMaintenance">
+          {{ savingMaintenance ? 'Opslaan...' : 'Onderhoudsmodus opslaan' }}
+        </button>
+      </form>
+    </section>
   </main>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
 import StatusMessage from '../components/StatusMessage.vue'
-import { fetchAdminStatus } from '../services/api'
+import {
+  fetchAdminMaintenanceSettings,
+  fetchAdminStatus,
+  updateAdminMaintenanceSettings
+} from '../services/api'
 
 const status = ref(null)
 const message = ref('')
 const success = ref(false)
+const savingMaintenance = ref(false)
+const maintenanceForm = ref({
+  enabled: false,
+  title: 'Tijdelijk onderhoud',
+  message: 'We werken aan de website. Probeer het later opnieuw.',
+  expectedBackAt: '',
+  contactEmail: ''
+})
 
 const labels = {
   database: 'Database',
@@ -67,13 +122,35 @@ function formatDate(value) {
 
 onMounted(async () => {
   try {
-    status.value = await fetchAdminStatus()
+    const [statusResult, maintenanceResult] = await Promise.all([
+      fetchAdminStatus(),
+      fetchAdminMaintenanceSettings()
+    ])
+
+    status.value = statusResult
+    maintenanceForm.value = maintenanceResult
     success.value = true
   } catch (error) {
     success.value = false
     message.value = error.message
   }
 })
+
+async function saveMaintenanceSettings() {
+  savingMaintenance.value = true
+  message.value = ''
+
+  try {
+    maintenanceForm.value = await updateAdminMaintenanceSettings(maintenanceForm.value)
+    success.value = true
+    message.value = 'Onderhoudsmodus is opgeslagen.'
+  } catch (error) {
+    success.value = false
+    message.value = error.message
+  } finally {
+    savingMaintenance.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -125,11 +202,94 @@ h1 {
 
 .status-card,
 .metric-grid div,
-.status-panel {
+.status-panel,
+.maintenance-panel {
   padding: 22px;
   border: 1px solid #dbe3ef;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.maintenance-panel {
+  margin-top: 22px;
+}
+
+.maintenance-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 22px;
+  margin-bottom: 22px;
+}
+
+.maintenance-panel__head h2 {
+  margin-bottom: 8px;
+  color: #0f172a;
+  font-size: 1.8rem;
+}
+
+.switch {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.switch input {
+  width: 22px;
+  height: 22px;
+  accent-color: #2563eb;
+}
+
+.maintenance-form {
+  display: grid;
+  gap: 16px;
+}
+
+.maintenance-form label {
+  display: grid;
+  gap: 8px;
+  color: #334155;
+  font-weight: 900;
+}
+
+.maintenance-form input,
+.maintenance-form textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font: inherit;
+}
+
+.maintenance-form textarea {
+  min-height: 130px;
+  resize: vertical;
+}
+
+.maintenance-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.save-button {
+  justify-self: flex-start;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-weight: 900;
+}
+
+.save-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .dot {
@@ -166,8 +326,13 @@ h1 {
 
 @media (max-width: 850px) {
   .status-grid,
-  .metric-grid {
+  .metric-grid,
+  .maintenance-form__grid {
     grid-template-columns: 1fr;
+  }
+
+  .maintenance-panel__head {
+    flex-direction: column;
   }
 }
 </style>

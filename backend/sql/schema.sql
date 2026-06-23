@@ -53,6 +53,13 @@ CREATE TABLE registrations (
                                CONSTRAINT fk_reg_conference FOREIGN KEY (conference_id) REFERENCES conferences(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+                                            setting_key VARCHAR(100) NOT NULL,
+                                            setting_value LONGTEXT NOT NULL,
+                                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                            PRIMARY KEY (setting_key)
+);
+
 INSERT INTO conferences (title, category, location, conference_date, description, image_url, price, capacity)
 VALUES
     ('Tech Future Summit 2026', 'Conferentie', 'Amsterdam', '2026-06-15', 'Een conferentie over technologie, AI en software innovatie.', 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80', 25.00, 250),

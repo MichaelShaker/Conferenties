@@ -211,6 +211,17 @@ CREATE TABLE IF NOT EXISTS email_logs (
 
 
 -- =====================
+-- APP SETTINGS
+-- =====================
+CREATE TABLE IF NOT EXISTS app_settings (
+                                            setting_key VARCHAR(100) NOT NULL,
+    setting_value LONGTEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (setting_key)
+    ) ENGINE=InnoDB;
+
+
+-- =====================
 -- KHELWA ROOMS
 -- =====================
 CREATE TABLE IF NOT EXISTS khelwa_rooms (
