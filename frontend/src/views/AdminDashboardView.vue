@@ -90,9 +90,19 @@
             <b>→</b>
           </RouterLink>
 
-          <RouterLink to="/admin/audit" class="admin-action">
+          <RouterLink to="/admin/status" class="admin-action">
             <div>
               <span>05</span>
+              <h3>Onderhoudsmodus</h3>
+              <p>Zet de publieke website tijdelijk dicht en pas de onderhoudsmelding aan.</p>
+            </div>
+
+            <b>→</b>
+          </RouterLink>
+
+          <RouterLink to="/admin/audit" class="admin-action">
+            <div>
+              <span>06</span>
               <h3>Audit log</h3>
               <p>Bekijk wie registraties heeft goedgekeurd, afgewezen of aangepast.</p>
             </div>
